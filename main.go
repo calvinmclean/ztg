@@ -7,8 +7,8 @@ import (
 )
 
 func main() {
-	d1 := dice.NewRoller("One")
-	d2 := dice.NewRoller("Two")
+	d1 := dice.NewRoller("One", 80)
+	d2 := dice.NewRoller("Two", 80)
 
 	roll1 := d1.Roll(d2)
 	roll2 := d2.Roll(d1)

@@ -21,7 +21,8 @@ type Peer interface {
 
 // Roller allows rolling a dice with a peer
 type Roller struct {
-	name string
+	name  string
+	sides uint64
 
 	secret     [32]byte
 	commitment [32]byte
@@ -29,11 +30,13 @@ type Roller struct {
 	in chan [32]byte
 }
 
-// NewRoller creates a Roller with the specified name and a randomly-generated secret and commitment hash
-func NewRoller(name string) Roller {
+// NewRoller creates a Roller with the specified name and number of sides.
+// It randomly-generates a secret and commitment hash
+func NewRoller(name string, sides uint8) Roller {
 	secret, commitment := createSecretAndCommitment()
 	return Roller{
 		name:       name,
+		sides:      uint64(sides),
 		secret:     secret,
 		commitment: commitment,
 		in:         make(chan [32]byte, 1),
@@ -107,14 +110,13 @@ func (d Roller) Roll(peer Peer) Roll {
 
 		// Use rejection sampling to avoid modulo bias
 		// Take 64 bits at a time
-		const sides = 6
 		const max = uint64(^uint64(0)) // 2^64 - 1
-		const limit = max - (max % sides)
+		limit := max - (max % d.sides)
 
 		for i := 0; i+8 <= len(sum); i += 8 {
 			v := binary.BigEndian.Uint64(sum[i : i+8])
 			if v < limit {
-				roll.result <- int(v%uint64(sides)) + 1
+				roll.result <- int(v%d.sides) + 1
 				return
 			}
 		}

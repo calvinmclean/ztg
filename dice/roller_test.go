@@ -25,8 +25,8 @@ func TestDiceRollFairness(t *testing.T) {
 	)
 
 	for range rolls {
-		d1 := dice.NewRoller("One")
-		d2 := dice.NewRoller("Two")
+		d1 := dice.NewRoller("One", sides)
+		d2 := dice.NewRoller("Two", sides)
 
 		roll1 := d1.Roll(d2)
 		roll2 := d2.Roll(d1)
