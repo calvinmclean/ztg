@@ -2,6 +2,7 @@ package dice
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -52,33 +53,38 @@ func (t *HTTPTransport) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (t *HTTPTransport) Send(b [32]byte) {
+func (t *HTTPTransport) Send(ctx context.Context, b [32]byte) error {
 	for range retries {
-		resp, err := http.Post(
-			t.sendAddr+"/recv",
-			"application/octet-stream",
-			bytes.NewReader(b[:]),
-		)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.sendAddr+"/recv", bytes.NewReader(b[:]))
 		if err != nil {
-			if errors.Is(err, syscall.ECONNREFUSED) {
-				// connection was actively refused
-				select {
-				case <-time.After(retryDelay):
-					// case <-ctx.Done():
-					// 	return nil, ctx.Err()
-				}
-				continue
-			}
-			// otherwise return
-			return
+			return err
 		}
-		resp.Body.Close()
+		req.Header.Add("Content-Type", "application/octet-stream")
 
-		break
-
+		resp, err := http.DefaultClient.Do(req)
+		// retry connection errors
+		if errors.Is(err, syscall.ECONNREFUSED) {
+			select {
+			case <-time.After(retryDelay):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		return resp.Body.Close()
 	}
+
+	return nil
 }
 
-func (t *HTTPTransport) Recv() <-chan [32]byte {
-	return t.in
+func (t *HTTPTransport) Recv(ctx context.Context) ([32]byte, error) {
+	select {
+	case result := <-t.in:
+		return result, nil
+	case <-ctx.Done():
+		return [32]byte{}, ctx.Err()
+	}
 }

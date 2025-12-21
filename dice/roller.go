@@ -2,10 +2,12 @@ package dice
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 const (
@@ -16,8 +18,8 @@ const (
 // Peer is used to send and receive messages and can be used to implement the
 // Roller over the network or with other communication methods
 type Peer interface {
-	Send([32]byte)
-	Recv() <-chan [32]byte
+	Send(context.Context, [32]byte) error
+	Recv(context.Context) ([32]byte, error)
 }
 
 // Roller allows rolling a dice with a peer
@@ -72,11 +74,21 @@ type Roll struct {
 
 // Result gets the dice roll result and error
 func (r Roll) Result() (int, error) {
-	return <-r.result, <-r.err
+	var result int
+	var err error
+
+	// receive values in either order
+	select {
+	case result = <-r.result:
+		err = <-r.err
+	case err = <-r.err:
+		result = <-r.result
+	}
+	return result, err
 }
 
 // Roll initializes the roll process with the peer and returns the Roll to receive asynchronous results
-func (d Roller) Roll() Roll {
+func (d Roller) Roll(ctx context.Context) Roll {
 	roll := Roll{
 		result: make(chan int),
 		err:    make(chan error),
@@ -85,9 +97,9 @@ func (d Roller) Roll() Roll {
 	secret, commitment := createSecretAndCommitment()
 
 	go func() {
-		exchange := d.startExchange(d.peer, secret, commitment)
+		exchange := d.startExchange(ctx, d.peer, secret, commitment)
 
-		peerSecret, err := exchange()
+		peerSecret, err := exchange(ctx)
 		if err != nil {
 			roll.result <- 0
 			roll.err <- err
@@ -130,35 +142,76 @@ func (d Roller) Roll() Roll {
 //  3. send secret to the Peer
 //  4. receive the secret from the Peer
 //  5. Send the Secret and Commitment to output channels
-func (d *Roller) startExchange(peer Peer, secret, commitment [32]byte) func() ([32]byte, error) {
+func (d *Roller) startExchange(ctx context.Context, peer Peer, secret, commitment [32]byte) func(ctx context.Context) ([32]byte, error) {
 	secretCh := make(chan [32]byte)
 	commitCh := make(chan [32]byte)
+	errCh := make(chan error)
 
 	go func() {
 		// 1. Send commitment
-		peer.Send(commitment)
+		err := peer.Send(ctx, commitment)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to send secret: %w", err)
+			return
+		}
 
 		// 2. Receive commitment
-		otherCommit := <-peer.Recv()
+		otherCommit, err := peer.Recv(ctx)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to receive commitment: %w", err)
+			return
+		}
 
 		// 3. Send secret
-		peer.Send(secret)
+		err = peer.Send(ctx, secret)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to send secret: %w", err)
+			return
+		}
 
 		// 4. Receive secret
-		otherSecret := <-peer.Recv()
+		otherSecret, err := peer.Recv(ctx)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to receive secret: %w", err)
+			return
+		}
 
 		// 5. Complete by sending data to channels and closing
-		secretCh <- otherSecret
-		commitCh <- otherCommit
-		close(secretCh)
-		close(commitCh)
+		select {
+		case secretCh <- otherSecret:
+			close(secretCh)
+		case <-ctx.Done():
+			errCh <- ctx.Err()
+			return
+		}
+		select {
+		case commitCh <- otherCommit:
+			close(commitCh)
+		case <-ctx.Done():
+			errCh <- ctx.Err()
+			return
+		}
 	}()
 
 	// this function will block until the above goroutine finishes by pushing secret and commitment into the
 	// channels
-	return func() ([32]byte, error) {
-		secret := <-secretCh
-		commit := <-commitCh
+	return func(ctx context.Context) ([32]byte, error) {
+		var secret, commit [32]byte
+		select {
+		case secret = <-secretCh:
+		case err := <-errCh:
+			return [32]byte{}, err
+		case <-ctx.Done():
+			return [32]byte{}, ctx.Err()
+		}
+
+		select {
+		case commit = <-commitCh:
+		case err := <-errCh:
+			return [32]byte{}, err
+		case <-ctx.Done():
+			return [32]byte{}, ctx.Err()
+		}
 		return secret, verifyCommitment(secret, commit)
 	}
 }

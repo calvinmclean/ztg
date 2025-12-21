@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"ztg/dice"
 )
@@ -29,9 +31,14 @@ func runHTTP(sides uint8, addr, peerAddr string) {
 	s := http.Server{Addr: addr, Handler: tp}
 	go s.ListenAndServe()
 
-	roll := d.Roll()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	roll := d.Roll(ctx)
 
-	out, _ := roll.Result()
+	out, err := roll.Result()
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	fmt.Println(out)
 	s.Close()
@@ -47,8 +54,9 @@ func runSimple(sides uint8) {
 	d1 := dice.NewRoller("One", sides, tport1)
 	d2 := dice.NewRoller("Two", sides, tport2)
 
-	roll1 := d1.Roll()
-	roll2 := d2.Roll()
+	ctx := context.Background()
+	roll1 := d1.Roll(ctx)
+	roll2 := d2.Roll(ctx)
 
 	r1, _ := roll1.Result()
 	r2, _ := roll2.Result()

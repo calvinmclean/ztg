@@ -1,6 +1,7 @@
 package dice_test
 
 import (
+	"context"
 	"io"
 	"math"
 	"net/http/httptest"
@@ -35,8 +36,9 @@ func TestDiceRollFairness(t *testing.T) {
 	d2 := dice.NewRoller("Two", sides, tport2)
 
 	for range rolls {
-		roll1 := d1.Roll()
-		roll2 := d2.Roll()
+		ctx := context.Background()
+		roll1 := d1.Roll(ctx)
+		roll2 := d2.Roll(ctx)
 
 		r1, err := roll1.Result()
 		if err != nil {
@@ -106,8 +108,9 @@ func TestHTTP(t *testing.T) {
 
 	rolls := 100
 	for range rolls {
-		roll1 := d1.Roll()
-		roll2 := d2.Roll()
+		ctx := context.Background()
+		roll1 := d1.Roll(ctx)
+		roll2 := d2.Roll(ctx)
 
 		r1, err := roll1.Result()
 		if err != nil {
