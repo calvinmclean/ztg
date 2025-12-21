@@ -1,7 +1,9 @@
 package dice_test
 
 import (
+	"io"
 	"math"
+	"net/http/httptest"
 	"testing"
 
 	"ztg/dice"
@@ -24,12 +26,17 @@ func TestDiceRollFairness(t *testing.T) {
 		expectedPerSide = float64(rolls) / sides
 	)
 
-	for range rolls {
-		d1 := dice.NewRoller("One", sides)
-		d2 := dice.NewRoller("Two", sides)
+	rd1, wr1 := io.Pipe()
+	rd2, wr2 := io.Pipe()
+	tport1 := dice.NewRWTransport(rd1, wr2)
+	tport2 := dice.NewRWTransport(rd2, wr1)
 
-		roll1 := d1.Roll(d2)
-		roll2 := d2.Roll(d1)
+	d1 := dice.NewRoller("One", sides, tport1)
+	d2 := dice.NewRoller("Two", sides, tport2)
+
+	for range rolls {
+		roll1 := d1.Roll()
+		roll2 := d2.Roll()
 
 		r1, err := roll1.Result()
 		if err != nil {
@@ -81,4 +88,39 @@ func TestDiceRollFairness(t *testing.T) {
 			)
 		}
 	})
+}
+
+func TestHTTP(t *testing.T) {
+	ta := dice.NewHTTPTransport("")
+	tb := dice.NewHTTPTransport("")
+
+	taServer := httptest.NewServer(ta)
+	tbServer := httptest.NewServer(tb)
+
+	ta.SetSendAddr(tbServer.URL)
+	tb.SetSendAddr(taServer.URL)
+
+	const sides = 6
+	d1 := dice.NewRoller("One", sides, ta)
+	d2 := dice.NewRoller("Two", sides, tb)
+
+	rolls := 100
+	for range rolls {
+		roll1 := d1.Roll()
+		roll2 := d2.Roll()
+
+		r1, err := roll1.Result()
+		if err != nil {
+			t.Fatalf("unexpected error on Roll Result: %v", err)
+		}
+
+		r2, err := roll2.Result()
+		if err != nil {
+			t.Fatalf("unexpected error on Roll Result: %v", err)
+		}
+
+		if r1 != r2 {
+			t.Errorf("rolls are not equal %d != %d", r1, r2)
+		}
+	}
 }
