@@ -26,8 +26,7 @@ type HTTPTransport struct {
 func NewHTTPTransport(sendAddr string) *HTTPTransport {
 	tport := &HTTPTransport{
 		sendAddr: sendAddr,
-		// TODO: is this correct? This makes it work before Recv is called
-		in: make(chan [32]byte, 1),
+		in:       make(chan [32]byte, 1),
 	}
 
 	mux := http.NewServeMux()

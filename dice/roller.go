@@ -18,7 +18,9 @@ const (
 // Peer is used to send and receive messages and can be used to implement the
 // Roller over the network or with other communication methods
 type Peer interface {
+	// Send is used to send data to the Peer. It should not block while waiting for the Peer to receive.
 	Send(context.Context, [32]byte) error
+	// Recv is used to receive data from the other Peer. It should block until data is received
 	Recv(context.Context) ([32]byte, error)
 }
 
