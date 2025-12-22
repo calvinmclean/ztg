@@ -98,13 +98,18 @@ func (d Roller) Roll(ctx context.Context) Roll {
 
 	secret, commitment := createSecretAndCommitment()
 
+	// finish is used to consistently push results to both channels which is required to finish the roll
+	finish := func(v int, err error) {
+		roll.result <- v
+		roll.err <- err
+	}
+
 	go func() {
 		exchange := d.startExchange(ctx, d.peer, secret, commitment)
 
 		peerSecret, err := exchange(ctx)
 		if err != nil {
-			roll.result <- 0
-			roll.err <- err
+			finish(0, err)
 			return
 		}
 
@@ -135,28 +140,24 @@ func (d Roller) Roll(ctx context.Context) Roll {
 
 		err = d.peer.Send(ctx, rollValueOut)
 		if err != nil {
-			roll.result <- 0
-			roll.err <- err
+			finish(0, err)
 			return
 		}
 
 		confirmation, err := d.peer.Recv(ctx)
 		if err != nil {
-			roll.result <- 0
-			roll.err <- err
+			finish(0, err)
 			return
 		}
 
 		confirmationVal := binary.BigEndian.Uint64(confirmation[:])
 
 		if rollValue != confirmationVal {
-			roll.result <- 0
-			roll.err <- fmt.Errorf("error confirming roll: peer (%d) != self (%d)", confirmationVal, rollValue)
+			finish(0, fmt.Errorf("error confirming roll: peer (%d) != self (%d)", confirmationVal, rollValue))
 			return
 		}
 
-		roll.result <- int(rollValue)
-		roll.err <- nil
+		finish(int(rollValue), nil)
 	}()
 
 	return roll
