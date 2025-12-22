@@ -121,16 +121,42 @@ func (d Roller) Roll(ctx context.Context) Roll {
 		const max = uint64(^uint64(0)) // 2^64 - 1
 		limit := max - (max % d.sides)
 
+		var rollValue uint64
 		for i := 0; i+8 <= len(sum); i += 8 {
 			v := binary.BigEndian.Uint64(sum[i : i+8])
 			if v < limit {
-				roll.result <- int(v%d.sides) + 1
-				roll.err <- nil
-				return
+				rollValue = v%d.sides + 1
+				break
 			}
 		}
 
-		// TODO: send roll result to peer to confirm and finalize? Both peers should confirm the same result before it is considered valid
+		var rollValueOut [32]byte
+		binary.BigEndian.PutUint64(rollValueOut[:], rollValue)
+
+		err = d.peer.Send(ctx, rollValueOut)
+		if err != nil {
+			roll.result <- 0
+			roll.err <- err
+			return
+		}
+
+		confirmation, err := d.peer.Recv(ctx)
+		if err != nil {
+			roll.result <- 0
+			roll.err <- err
+			return
+		}
+
+		confirmationVal := binary.BigEndian.Uint64(confirmation[:])
+
+		if rollValue != confirmationVal {
+			roll.result <- 0
+			roll.err <- fmt.Errorf("error confirming roll: peer (%d) != self (%d)", confirmationVal, rollValue)
+			return
+		}
+
+		roll.result <- int(rollValue)
+		roll.err <- nil
 	}()
 
 	return roll
