@@ -109,7 +109,7 @@ func (d Roller) Roll(ctx context.Context) Roll {
 
 		peerSecret, err := exchange(ctx)
 		if err != nil {
-			finish(0, err)
+			finish(0, fmt.Errorf("failed to exchange: %w", err))
 			return
 		}
 
@@ -140,13 +140,13 @@ func (d Roller) Roll(ctx context.Context) Roll {
 
 		err = d.peer.Send(ctx, rollValueOut)
 		if err != nil {
-			finish(0, err)
+			finish(0, fmt.Errorf("failed to send roll confirmation: %w", err))
 			return
 		}
 
 		confirmation, err := d.peer.Recv(ctx)
 		if err != nil {
-			finish(0, err)
+			finish(0, fmt.Errorf("failed to receive roll confirmation: %w", err))
 			return
 		}
 
