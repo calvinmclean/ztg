@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"ztg/dice"
@@ -30,18 +32,38 @@ func runHTTP(sides uint8, addr, peerAddr string) {
 	s := http.Server{Addr: addr, Handler: tp}
 	go s.ListenAndServe()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
-	roll := d.Roll(ctx)
+	fmt.Println("Running... press Ctrl+C to stop")
 
-	out, err := roll.GetOne()
-	if err != nil {
-		fmt.Println(err)
+	ctx, bigCancel := context.WithCancel(context.Background())
+	defer bigCancel()
+
+	defer s.Close()
+
+	go func() {
+		<-sigCh
+		fmt.Println("\nCtrl+C received, exiting loop")
+		bigCancel()
+	}()
+
+	for {
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+
+		roll := d.Roll(ctx)
+		out, err := roll.Get(8)
+		cancel()
+
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fmt.Println(out)
+
+		time.Sleep(1 * time.Second)
 	}
-
-	fmt.Println(out)
-	s.Close()
 }
 
 // runSimple runs a single roll using two in-memory Rollers with ChannelPeers
