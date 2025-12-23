@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"time"
@@ -25,7 +24,7 @@ func main() {
 }
 
 func runHTTP(sides uint8, addr, peerAddr string) {
-	tp := dice.NewHTTPTransport(peerAddr)
+	tp := dice.NewHTTPPeer(peerAddr)
 	d := dice.NewRoller(addr, sides, tp)
 
 	s := http.Server{Addr: addr, Handler: tp}
@@ -33,6 +32,7 @@ func runHTTP(sides uint8, addr, peerAddr string) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+
 	roll := d.Roll(ctx)
 
 	out, err := roll.Result()
@@ -44,15 +44,12 @@ func runHTTP(sides uint8, addr, peerAddr string) {
 	s.Close()
 }
 
-// runSimple runs a single roll using two in-memory Rollers with RWTransport
+// runSimple runs a single roll using two in-memory Rollers with ChannelPeers
 func runSimple(sides uint8) {
-	rd1, wr1 := io.Pipe()
-	rd2, wr2 := io.Pipe()
-	tport1 := dice.NewRWTransport(rd1, wr2)
-	tport2 := dice.NewRWTransport(rd2, wr1)
+	peer1, peer2 := dice.NewChannelPeers()
 
-	d1 := dice.NewRoller("One", sides, tport1)
-	d2 := dice.NewRoller("Two", sides, tport2)
+	d1 := dice.NewRoller("One", sides, peer1)
+	d2 := dice.NewRoller("Two", sides, peer2)
 
 	ctx := context.Background()
 	roll1 := d1.Roll(ctx)

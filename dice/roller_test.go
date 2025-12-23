@@ -2,13 +2,39 @@ package dice_test
 
 import (
 	"context"
-	"io"
 	"math"
 	"net/http/httptest"
 	"testing"
 
 	"ztg/dice"
 )
+
+func TestPipePeer(t *testing.T) {
+	const sides = 6
+
+	peer1, peer2 := dice.NewPipePeers()
+
+	d1 := dice.NewRoller("One", sides, peer1)
+	d2 := dice.NewRoller("Two", sides, peer2)
+
+	ctx := context.Background()
+	roll1 := d1.Roll(ctx)
+	roll2 := d2.Roll(ctx)
+
+	r1, err := roll1.Result()
+	if err != nil {
+		t.Fatalf("unexpected error on Roll Result: %v", err)
+	}
+
+	r2, err := roll2.Result()
+	if err != nil {
+		t.Fatalf("unexpected error on Roll Result: %v", err)
+	}
+
+	if r1 != r2 {
+		t.Errorf("rolls are not equal %d != %d", r1, r2)
+	}
+}
 
 func TestDiceRollFairness(t *testing.T) {
 	results := map[int]int{
@@ -27,13 +53,9 @@ func TestDiceRollFairness(t *testing.T) {
 		expectedPerSide = float64(rolls) / sides
 	)
 
-	rd1, wr1 := io.Pipe()
-	rd2, wr2 := io.Pipe()
-	tport1 := dice.NewRWTransport(rd1, wr2)
-	tport2 := dice.NewRWTransport(rd2, wr1)
-
-	d1 := dice.NewRoller("One", sides, tport1)
-	d2 := dice.NewRoller("Two", sides, tport2)
+	peer1, peer2 := dice.NewChannelPeers()
+	d1 := dice.NewRoller("One", sides, peer1)
+	d2 := dice.NewRoller("Two", sides, peer2)
 
 	for range rolls {
 		ctx := context.Background()
@@ -93,18 +115,18 @@ func TestDiceRollFairness(t *testing.T) {
 }
 
 func TestHTTP(t *testing.T) {
-	ta := dice.NewHTTPTransport("")
-	tb := dice.NewHTTPTransport("")
+	peer1 := dice.NewHTTPPeer("")
+	peer2 := dice.NewHTTPPeer("")
 
-	taServer := httptest.NewServer(ta)
-	tbServer := httptest.NewServer(tb)
+	server1 := httptest.NewServer(peer1)
+	server2 := httptest.NewServer(peer2)
 
-	ta.SetSendAddr(tbServer.URL)
-	tb.SetSendAddr(taServer.URL)
+	peer1.SetSendAddr(server2.URL)
+	peer2.SetSendAddr(server1.URL)
 
 	const sides = 6
-	d1 := dice.NewRoller("One", sides, ta)
-	d2 := dice.NewRoller("Two", sides, tb)
+	d1 := dice.NewRoller("One", sides, peer1)
+	d2 := dice.NewRoller("Two", sides, peer2)
 
 	rolls := 100
 	for range rolls {

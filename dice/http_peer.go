@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"syscall"
 	"time"
@@ -15,18 +14,20 @@ const (
 	retryDelay = 500 * time.Millisecond
 )
 
-// HTTPTransport implements a Peer that works over an HTTP connection
-type HTTPTransport struct {
+// HTTPPeer implements a Peer that works over an HTTP connection
+type HTTPPeer struct {
 	sendAddr string
 	name     string
 
-	in chan [32]byte
+	in chan Message
 }
 
-func NewHTTPTransport(sendAddr string) *HTTPTransport {
-	tport := &HTTPTransport{
-		sendAddr: sendAddr,
-		in:       make(chan [32]byte, 1),
+var _ Peer = &HTTPPeer{}
+
+func NewHTTPPeer(addr string) *HTTPPeer {
+	tport := &HTTPPeer{
+		sendAddr: addr,
+		in:       make(chan Message, 1),
 	}
 
 	mux := http.NewServeMux()
@@ -35,15 +36,15 @@ func NewHTTPTransport(sendAddr string) *HTTPTransport {
 	return tport
 }
 
-func (t *HTTPTransport) SetSendAddr(sendAddr string) {
+func (t *HTTPPeer) SetSendAddr(sendAddr string) {
 	t.sendAddr = sendAddr
 }
 
-func (t *HTTPTransport) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (t *HTTPPeer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	var msg [32]byte
-	if _, err := io.ReadFull(r.Body, msg[:]); err != nil {
+	msg, err := ReadMessage(r.Body)
+	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
@@ -52,9 +53,9 @@ func (t *HTTPTransport) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (t *HTTPTransport) Send(ctx context.Context, b [32]byte) error {
+func (t *HTTPPeer) Send(ctx context.Context, msg Message) error {
 	for range retries {
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.sendAddr+"/recv", bytes.NewReader(b[:]))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.sendAddr+"/recv", bytes.NewReader(msg.Bytes()))
 		if err != nil {
 			return err
 		}
@@ -79,11 +80,11 @@ func (t *HTTPTransport) Send(ctx context.Context, b [32]byte) error {
 	return nil
 }
 
-func (t *HTTPTransport) Recv(ctx context.Context) ([32]byte, error) {
+func (t *HTTPPeer) Recv(ctx context.Context) (Message, error) {
 	select {
-	case result := <-t.in:
-		return result, nil
+	case msg := <-t.in:
+		return msg, nil
 	case <-ctx.Done():
-		return [32]byte{}, ctx.Err()
+		return Message{}, ctx.Err()
 	}
 }

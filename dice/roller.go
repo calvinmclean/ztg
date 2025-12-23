@@ -19,9 +19,9 @@ const (
 // Roller over the network or with other communication methods
 type Peer interface {
 	// Send is used to send data to the Peer. It should not block while waiting for the Peer to receive.
-	Send(context.Context, [32]byte) error
+	Send(context.Context, Message) error
 	// Recv is used to receive data from the other Peer. It should block until data is received
-	Recv(context.Context) ([32]byte, error)
+	Recv(context.Context) (Message, error)
 }
 
 // Roller allows rolling a dice with a peer
@@ -121,39 +121,11 @@ func (d Roller) Roll(ctx context.Context) Roll {
 
 		sum := sha256.Sum256(append([]byte(rollLabel), concatSecrets...))
 
-		// Use rejection sampling to avoid modulo bias
-		// Take 64 bits at a time
-		const max = uint64(^uint64(0)) // 2^64 - 1
-		limit := max - (max % d.sides)
+		rollValue := d.roll(sum)
 
-		var rollValue uint64
-		for i := 0; i+8 <= len(sum); i += 8 {
-			v := binary.BigEndian.Uint64(sum[i : i+8])
-			if v < limit {
-				rollValue = v%d.sides + 1
-				break
-			}
-		}
-
-		var rollValueOut [32]byte
-		binary.BigEndian.PutUint64(rollValueOut[:], rollValue)
-
-		err = d.peer.Send(ctx, rollValueOut)
+		err = d.confirmRoll(ctx, rollValue)
 		if err != nil {
-			finish(0, fmt.Errorf("failed to send roll confirmation: %w", err))
-			return
-		}
-
-		confirmation, err := d.peer.Recv(ctx)
-		if err != nil {
-			finish(0, fmt.Errorf("failed to receive roll confirmation: %w", err))
-			return
-		}
-
-		confirmationVal := binary.BigEndian.Uint64(confirmation[:])
-
-		if rollValue != confirmationVal {
-			finish(0, fmt.Errorf("error confirming roll: peer (%d) != self (%d)", confirmationVal, rollValue))
+			finish(0, err)
 			return
 		}
 
@@ -161,6 +133,50 @@ func (d Roller) Roll(ctx context.Context) Roll {
 	}()
 
 	return roll
+}
+
+func (d *Roller) roll(sum [32]byte) uint64 {
+	// Use rejection sampling to avoid modulo bias
+	// Take 64 bits at a time
+	const max = uint64(^uint64(0)) // 2^64 - 1
+	limit := max - (max % d.sides)
+
+	var rollValue uint64
+	for i := 0; i+8 <= len(sum); i += 8 {
+		v := binary.BigEndian.Uint64(sum[i : i+8])
+		if v < limit {
+			rollValue = v%d.sides + 1
+			break
+		}
+	}
+
+	return rollValue
+}
+
+func (d *Roller) confirmRoll(ctx context.Context, rollValue uint64) error {
+	var rollValueOut [32]byte
+	binary.BigEndian.PutUint64(rollValueOut[:], rollValue)
+
+	err := d.peer.Send(ctx, Message{MsgTypeRollConfirmation, rollValueOut})
+	if err != nil {
+		return fmt.Errorf("failed to send roll confirmation: %w", err)
+	}
+
+	msg, err := d.peer.Recv(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to receive roll confirmation: %w", err)
+	}
+	if msg.Type != MsgTypeRollConfirmation {
+		return fmt.Errorf("received unexpected MsgType for roll confirmation: %s", msg.Type.String())
+	}
+
+	confirmationVal := binary.BigEndian.Uint64(msg.Data[:])
+
+	if rollValue != confirmationVal {
+		return fmt.Errorf("error confirming roll: peer (%d) != self (%d)", confirmationVal, rollValue)
+	}
+
+	return nil
 }
 
 // startExchange initializes the dice exchange with the Peer. This starts a goroutine and
@@ -178,43 +194,51 @@ func (d *Roller) startExchange(ctx context.Context, peer Peer, secret, commitmen
 
 	go func() {
 		// 1. Send commitment
-		err := peer.Send(ctx, commitment)
+		err := peer.Send(ctx, Message{MsgTypeCommitment, commitment})
 		if err != nil {
 			errCh <- fmt.Errorf("failed to send secret: %w", err)
 			return
 		}
 
 		// 2. Receive commitment
-		otherCommit, err := peer.Recv(ctx)
+		commitmentMsg, err := peer.Recv(ctx)
 		if err != nil {
 			errCh <- fmt.Errorf("failed to receive commitment: %w", err)
 			return
 		}
+		if commitmentMsg.Type != MsgTypeCommitment {
+			errCh <- fmt.Errorf("received unexpected MsgType for commitment: %s", commitmentMsg.Type.String())
+			return
+		}
 
 		// 3. Send secret
-		err = peer.Send(ctx, secret)
+		err = peer.Send(ctx, Message{MsgTypeSecret, secret})
 		if err != nil {
 			errCh <- fmt.Errorf("failed to send secret: %w", err)
 			return
 		}
 
 		// 4. Receive secret
-		otherSecret, err := peer.Recv(ctx)
+		secretMsg, err := peer.Recv(ctx)
 		if err != nil {
 			errCh <- fmt.Errorf("failed to receive secret: %w", err)
+			return
+		}
+		if secretMsg.Type != MsgTypeSecret {
+			errCh <- fmt.Errorf("received unexpected MsgType for secret: %s", secretMsg.Type.String())
 			return
 		}
 
 		// 5. Complete by sending data to channels and closing
 		select {
-		case secretCh <- otherSecret:
+		case secretCh <- secretMsg.Data:
 			close(secretCh)
 		case <-ctx.Done():
 			errCh <- ctx.Err()
 			return
 		}
 		select {
-		case commitCh <- otherCommit:
+		case commitCh <- commitmentMsg.Data:
 			close(commitCh)
 		case <-ctx.Done():
 			errCh <- ctx.Err()
