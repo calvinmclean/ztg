@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 )
@@ -13,6 +14,8 @@ import (
 const (
 	commitLabel = "dice-commit-v1|"
 	rollLabel   = "dice-roll-v1|"
+
+	max = uint16(^uint16(0)) // 2^16 - 1
 )
 
 // Peer is used to send and receive messages and can be used to implement the
@@ -27,20 +30,27 @@ type Peer interface {
 // Roller allows rolling a dice with a peer
 type Roller struct {
 	name  string
-	sides uint64
+	sides uint8
+
+	rollValueLimit uint16
 
 	in   chan [32]byte
 	peer Peer
 }
 
 // NewRoller creates a Roller with the specified name and number of sides.
-func NewRoller(name string, sides uint8, peer Peer) Roller {
-	return Roller{
-		name:  name,
-		sides: uint64(sides),
-		in:    make(chan [32]byte, 1),
-		peer:  peer,
+func NewRoller(name string, sides uint8, peer Peer) (Roller, error) {
+	// this limit can be increased
+	if sides > 20 {
+		return Roller{}, errors.New("max size of die is 20")
 	}
+	return Roller{
+		name:           name,
+		sides:          sides,
+		rollValueLimit: max - (max % uint16(sides)),
+		in:             make(chan [32]byte, 1),
+		peer:           peer,
+	}, nil
 }
 
 // createSecretAndCommitment generates a random secret and calculates the commitment hash
@@ -70,13 +80,26 @@ func verifyCommitment(secret, expectedCommit [32]byte) error {
 
 // Roll allows asynchronous retrieval of the dice roll result or the error
 type Roll struct {
-	result chan int
+	result chan []uint16
 	err    chan error
 }
 
-// Result gets the dice roll result and error
-func (r Roll) Result() (int, error) {
-	var result int
+// GetOne gets the first/only dice roll result and error
+func (r Roll) GetOne() (uint16, error) {
+	rolls, err := r.Get(1)
+	if err != nil || len(rolls) == 0 {
+		return 0, err
+	}
+	return rolls[0], nil
+}
+
+// Get gets the dice roll result and error
+func (r Roll) Get(n uint8) ([]uint16, error) {
+	if n <= 0 || n > 8 {
+		return nil, errors.New("number of rolls must be >0 and <=8")
+	}
+
+	var result []uint16
 	var err error
 
 	// receive values in either order
@@ -89,17 +112,18 @@ func (r Roll) Result() (int, error) {
 	return result, err
 }
 
-// Roll initializes the roll process with the peer and returns the Roll to receive asynchronous results
+// Roll initializes the roll process with the peer and returns the RollN to receive asynchronous results
+// It rolls up to 8 dice simultaneously
 func (d Roller) Roll(ctx context.Context) Roll {
 	roll := Roll{
-		result: make(chan int),
+		result: make(chan []uint16),
 		err:    make(chan error),
 	}
 
 	secret, commitment := createSecretAndCommitment()
 
 	// finish is used to consistently push results to both channels which is required to finish the roll
-	finish := func(v int, err error) {
+	finish := func(v []uint16, err error) {
 		roll.result <- v
 		roll.err <- err
 	}
@@ -109,7 +133,7 @@ func (d Roller) Roll(ctx context.Context) Roll {
 
 		peerSecret, err := exchange(ctx)
 		if err != nil {
-			finish(0, fmt.Errorf("failed to exchange: %w", err))
+			finish(nil, fmt.Errorf("failed to exchange: %w", err))
 			return
 		}
 
@@ -121,41 +145,51 @@ func (d Roller) Roll(ctx context.Context) Roll {
 
 		sum := sha256.Sum256(append([]byte(rollLabel), concatSecrets...))
 
-		rollValue := d.roll(sum)
+		rolls := d.roll(sum)
 
-		err = d.confirmRoll(ctx, rollValue)
+		err = d.confirmRoll(ctx, rolls)
 		if err != nil {
-			finish(0, err)
+			finish(nil, err)
 			return
 		}
 
-		finish(int(rollValue), nil)
+		finish(rolls, nil)
 	}()
 
 	return roll
 }
 
-func (d *Roller) roll(sum [32]byte) uint64 {
-	// Use rejection sampling to avoid modulo bias
-	// Take 64 bits at a time
-	const max = uint64(^uint64(0)) // 2^64 - 1
-	limit := max - (max % d.sides)
+func (d *Roller) roll(sum [32]byte) []uint16 {
+	// always "roll" 8 dice so the result is flexible
+	const n = 8
 
-	var rollValue uint64
-	for i := 0; i+8 <= len(sum); i += 8 {
-		v := binary.BigEndian.Uint64(sum[i : i+8])
-		if v < limit {
-			rollValue = v%d.sides + 1
-			break
+	result := make([]uint16, n)
+
+	var written uint8 = 0
+
+	for i := 0; i+2 <= len(sum) && written < n; i += 2 {
+		v := binary.BigEndian.Uint16(sum[i : i+2])
+
+		if v < d.rollValueLimit {
+			result[written] = v%uint16(d.sides) + 1
+			written++
 		}
 	}
 
-	return rollValue
+	if written != n {
+		panic("not enough entropy to produce all dice rolls")
+	}
+
+	return result
 }
 
-func (d *Roller) confirmRoll(ctx context.Context, rollValue uint64) error {
+func (d *Roller) confirmRoll(ctx context.Context, rolls []uint16) error {
 	var rollValueOut [32]byte
-	binary.BigEndian.PutUint64(rollValueOut[:], rollValue)
+	n := 0
+	for i := range len(rolls) {
+		binary.BigEndian.PutUint16(rollValueOut[n:n+2], rolls[i])
+		n += 2
+	}
 
 	err := d.peer.Send(ctx, Message{MsgTypeRollConfirmation, rollValueOut})
 	if err != nil {
@@ -170,10 +204,8 @@ func (d *Roller) confirmRoll(ctx context.Context, rollValue uint64) error {
 		return fmt.Errorf("received unexpected MsgType for roll confirmation: %s", msg.Type.String())
 	}
 
-	confirmationVal := binary.BigEndian.Uint64(msg.Data[:])
-
-	if rollValue != confirmationVal {
-		return fmt.Errorf("error confirming roll: peer (%d) != self (%d)", confirmationVal, rollValue)
+	if rollValueOut != msg.Data {
+		return fmt.Errorf("error confirming roll: peer (%s) != self (%s)", hex.EncodeToString(msg.Data[:]), hex.EncodeToString(rollValueOut[:]))
 	}
 
 	return nil

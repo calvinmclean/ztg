@@ -25,7 +25,7 @@ func main() {
 
 func runHTTP(sides uint8, addr, peerAddr string) {
 	tp := dice.NewHTTPPeer(peerAddr)
-	d := dice.NewRoller(addr, sides, tp)
+	d, _ := dice.NewRoller(addr, sides, tp)
 
 	s := http.Server{Addr: addr, Handler: tp}
 	go s.ListenAndServe()
@@ -35,7 +35,7 @@ func runHTTP(sides uint8, addr, peerAddr string) {
 
 	roll := d.Roll(ctx)
 
-	out, err := roll.Result()
+	out, err := roll.GetOne()
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -48,15 +48,15 @@ func runHTTP(sides uint8, addr, peerAddr string) {
 func runSimple(sides uint8) {
 	peer1, peer2 := dice.NewChannelPeers()
 
-	d1 := dice.NewRoller("One", sides, peer1)
-	d2 := dice.NewRoller("Two", sides, peer2)
+	d1, _ := dice.NewRoller("One", sides, peer1)
+	d2, _ := dice.NewRoller("Two", sides, peer2)
 
 	ctx := context.Background()
 	roll1 := d1.Roll(ctx)
 	roll2 := d2.Roll(ctx)
 
-	r1, _ := roll1.Result()
-	r2, _ := roll2.Result()
+	r1, _ := roll1.GetOne()
+	r2, _ := roll2.GetOne()
 
 	if r1 != r2 {
 		panic("invalid roll")
