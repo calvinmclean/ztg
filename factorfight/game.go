@@ -24,6 +24,27 @@ type Peer interface {
 
 type Turn struct {
 	Pawn1Pos int
+	Pawn2Pos int
+}
+
+// State represents the current state of the game
+type State struct {
+	Pawn1Pos     int
+	Pawn2Pos     int
+	PeerPawn1Pos int
+	PeerPawn2Pos int
+}
+
+// Turn updates the pawn positions according to the turn
+func (s *State) Turn(t Turn) {
+	s.Pawn1Pos = t.Pawn1Pos
+	s.Pawn2Pos = t.Pawn2Pos
+}
+
+// Turn updates the peer's pawn positions according to the turn
+func (s *State) PeerTurn(t Turn) {
+	s.PeerPawn1Pos = t.Pawn1Pos
+	s.PeerPawn2Pos = t.Pawn2Pos
 }
 
 type Player struct {
@@ -52,11 +73,10 @@ func NewPlayer(name string, strategy Strategy, peer Peer) (Player, error) {
 }
 
 func (p *Player) Play(ctx context.Context, goFirst bool) (bool, error) {
-	pos, peerPos := 0, 0
+	state := &State{}
 
 	if !goFirst {
-		var err error
-		peerPos, err = p.OtherTurn(ctx, peerPos)
+		err := p.OtherTurn(ctx, state)
 		if err != nil {
 			return false, fmt.Errorf("error doing other player's first turn: %w", err)
 		}
@@ -65,23 +85,22 @@ func (p *Player) Play(ctx context.Context, goFirst bool) (bool, error) {
 	turnNum := 0
 	for {
 		// fmt.Printf("%s (%d): Taking turn\n", p.name, turnNum)
-		newPos, err := p.TakeTurn(ctx, pos, turnNum)
+		err := p.TakeTurn(ctx, state)
 		if err != nil {
 			return false, fmt.Errorf("error taking turn: %w", err)
 		}
 
 		// fmt.Printf("%s (%d): Moving %d -> %d\n", p.name, turnNum, pos, newPos)
-		pos = newPos
-		if pos == goal {
+		if state.Pawn1Pos == goal {
 			return true, nil
 		}
 
-		peerPos, err = p.OtherTurn(ctx, peerPos)
+		err = p.OtherTurn(ctx, state)
 		if err != nil {
 			return false, fmt.Errorf("error doing other player's first turn: %w", err)
 		}
 
-		if peerPos == goal {
+		if state.PeerPawn1Pos == goal {
 			return false, nil
 		}
 
@@ -89,62 +108,51 @@ func (p *Player) Play(ctx context.Context, goFirst bool) (bool, error) {
 	}
 }
 
-func validateTurn(rolls []uint16, start, end int) error {
-	d1, d2 := int(rolls[0]), int(rolls[1])
-
-	moves := validMoves(start, d1, d2)
-	if len(moves) == 0 {
-		return errors.New("no valid moves")
-	}
-
-	if slices.Contains(moves, end) {
-		return nil
-	}
-	return fmt.Errorf("other player completed invalid move: [%d, %d] %d -> %d", d1, d2, start, end)
-}
-
-func (p *Player) OtherTurn(ctx context.Context, pos int) (int, error) {
+func (p *Player) OtherTurn(ctx context.Context, state *State) error {
 	rolls, err := p.roller.RollSync(ctx, 2)
 	if err != nil {
-		return 0, fmt.Errorf("error rolling: %w", err)
+		return fmt.Errorf("error rolling: %w", err)
 	}
 
 	peerTurn, err := p.peer.RecvTurn(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("error receiving turn: %w", err)
+		return fmt.Errorf("error receiving turn: %w", err)
 	}
 
-	err = validateTurn(rolls, pos, peerTurn.Pawn1Pos)
+	err = validateTurn(rolls, *state, peerTurn)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	return peerTurn.Pawn1Pos, nil
+	state.PeerTurn(peerTurn)
+
+	return nil
 }
 
-func (p *Player) TakeTurn(ctx context.Context, pos, i int) (int, error) {
+func (p *Player) TakeTurn(ctx context.Context, state *State) error {
 	rolls, err := p.roller.RollSync(ctx, 2)
 	if err != nil {
-		return 0, fmt.Errorf("error rolling: %w", err)
+		return fmt.Errorf("error rolling: %w", err)
 	}
 
 	d1, d2 := int(rolls[0]), int(rolls[1])
 
 	// fmt.Printf("%s (%d): Roll [%d, %d]\n", p.name, i, d1, d2)
 
-	moves := validMoves(pos, d1, d2)
+	moves := validMoves(state.Pawn1Pos, d1, d2)
 	if len(moves) == 0 {
-		return 0, errors.New("no valid moves")
+		return errors.New("no valid moves")
 	}
 
-	newPos := p.strategy.ChooseMove(ctx, moves)
+	turn := p.strategy.ChooseMove(ctx, *state, moves)
+	state.Turn(turn)
 
-	err = p.peer.SendTurn(ctx, Turn{Pawn1Pos: newPos})
+	err = p.peer.SendTurn(ctx, turn)
 	if err != nil {
-		return 0, fmt.Errorf("error sending turn: %w", err)
+		return fmt.Errorf("error sending turn: %w", err)
 	}
 
-	return newPos, nil
+	return nil
 }
 
 func validMoves(pos, d1, d2 int) []int {
@@ -179,4 +187,18 @@ func validMoves(pos, d1, d2 int) []int {
 	}
 
 	return moves
+}
+
+func validateTurn(rolls []uint16, state State, turn Turn) error {
+	d1, d2 := int(rolls[0]), int(rolls[1])
+
+	moves := validMoves(state.PeerPawn1Pos, d1, d2)
+	if len(moves) == 0 {
+		return errors.New("no valid moves")
+	}
+
+	if slices.Contains(moves, turn.Pawn1Pos) {
+		return nil
+	}
+	return fmt.Errorf("other player completed invalid move: [%d, %d] %d -> %d", d1, d2, state.PeerPawn1Pos, state.Pawn1Pos)
 }
