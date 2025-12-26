@@ -14,8 +14,8 @@ func TestGame(t *testing.T) {
 
 	peer1, peer2 := factorfight.NewChannelPeers()
 
-	p1, _ := factorfight.NewPlayer("P1", dicePeer1, peer2)
-	p2, _ := factorfight.NewPlayer("P2", dicePeer2, peer1)
+	p1, _ := factorfight.NewPlayer("P1", factorfight.DefaultStrategy, dicePeer1, peer2)
+	p2, _ := factorfight.NewPlayer("P2", factorfight.DefaultStrategy, dicePeer2, peer1)
 
 	ctx := context.Background()
 

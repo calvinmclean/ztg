@@ -12,7 +12,6 @@ import (
 // TODO: Handle "bump"
 // TODO: logging for play-by-play (also record moves)
 // TODO: initialize game between players (who goes first?)
-// TODO: implement Strategy interface
 // TODO: make sure all validMoves are calculated. Should this be part of Strategy or built-in to the game?
 
 const goal = 101
@@ -27,21 +26,27 @@ type Turn struct {
 }
 
 type Player struct {
-	name   string
-	roller dice.Roller
-	peer   Peer
+	name     string
+	roller   dice.Roller
+	peer     Peer
+	strategy Strategy
 }
 
-func NewPlayer(name string, dicePeer dice.Peer, peer Peer) (Player, error) {
+func NewPlayer(name string, strategy Strategy, dicePeer dice.Peer, peer Peer) (Player, error) {
 	roller, err := dice.NewRoller(name, 10, dicePeer)
 	if err != nil {
 		return Player{}, fmt.Errorf("error creating roller: %w", err)
 	}
 
+	if strategy == nil {
+		strategy = DefaultStrategy
+	}
+
 	return Player{
-		name:   name,
-		roller: roller,
-		peer:   peer,
+		name:     name,
+		roller:   roller,
+		peer:     peer,
+		strategy: strategy,
 	}, nil
 }
 
@@ -131,7 +136,7 @@ func (p *Player) TakeTurn(ctx context.Context, pos, i int) (int, error) {
 		return 0, errors.New("no valid moves")
 	}
 
-	newPos := chooseBestMove(moves)
+	newPos := p.strategy.ChooseMove(ctx, moves)
 
 	err = p.peer.SendTurn(ctx, Turn{Pawn1Pos: newPos})
 	if err != nil {
@@ -173,21 +178,4 @@ func validMoves(pos, d1, d2 int) []int {
 	}
 
 	return moves
-}
-
-func chooseBestMove(moves []int) int {
-	best := moves[0]
-	for _, m := range moves {
-		if abs(goal-m) < abs(goal-best) {
-			best = m
-		}
-	}
-	return best
-}
-
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
 }
