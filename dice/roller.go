@@ -112,6 +112,12 @@ func (r Roll) Get(n uint8) ([]uint16, error) {
 	return result, err
 }
 
+// RollSync will start and complete the roll in one call. It will block to communicate with the peer
+func (d Roller) RollSync(ctx context.Context, n uint8) ([]uint16, error) {
+	r := d.Roll(ctx)
+	return r.Get(n)
+}
+
 // Roll initializes the roll process with the peer and returns the RollN to receive asynchronous results
 // It rolls up to 8 dice simultaneously
 func (d Roller) Roll(ctx context.Context) Roll {
