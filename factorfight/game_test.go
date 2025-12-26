@@ -12,10 +12,10 @@ func TestGame(t *testing.T) {
 	const sides = 10
 	dicePeer1, dicePeer2 := dice.NewChannelPeers()
 
-	peer1, peer2 := factorfight.NewChannelPeers()
+	peer1, peer2 := factorfight.NewChannelPeers(dicePeer1, dicePeer2)
 
-	p1, _ := factorfight.NewPlayer("P1", factorfight.DefaultStrategy, dicePeer1, peer2)
-	p2, _ := factorfight.NewPlayer("P2", factorfight.DefaultStrategy, dicePeer2, peer1)
+	p1, _ := factorfight.NewPlayer("P1", factorfight.DefaultStrategy, peer2)
+	p2, _ := factorfight.NewPlayer("P2", factorfight.DefaultStrategy, peer1)
 
 	ctx := context.Background()
 

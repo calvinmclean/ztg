@@ -19,6 +19,7 @@ const goal = 101
 type Peer interface {
 	SendTurn(context.Context, Turn) error
 	RecvTurn(context.Context) (Turn, error)
+	Dice() dice.Peer
 }
 
 type Turn struct {
@@ -32,8 +33,8 @@ type Player struct {
 	strategy Strategy
 }
 
-func NewPlayer(name string, strategy Strategy, dicePeer dice.Peer, peer Peer) (Player, error) {
-	roller, err := dice.NewRoller(name, 10, dicePeer)
+func NewPlayer(name string, strategy Strategy, peer Peer) (Player, error) {
+	roller, err := dice.NewRoller(name, 10, peer.Dice())
 	if err != nil {
 		return Player{}, fmt.Errorf("error creating roller: %w", err)
 	}
