@@ -179,10 +179,10 @@ type diceAllocation struct {
 
 func allAllocations(d1, d2 int) []diceAllocation {
 	return []diceAllocation{
-		// {P1: []int{}, P2: []int{d1, d2}},
+		{Pawn1: []int{}, Pawn2: []int{d1, d2}},
 		{Pawn1: []int{d1, d2}, Pawn2: []int{}},
-		// {P1: []int{d1}, P2: []int{d2}},
-		// {P1: []int{d2}, P2: []int{d1}},
+		{Pawn1: []int{d1}, Pawn2: []int{d2}},
+		{Pawn1: []int{d2}, Pawn2: []int{d1}},
 	}
 }
 
@@ -208,8 +208,8 @@ func generateMoves(p1, p2 int, d1, d2 int) []Move {
 
 		for _, m1 := range p1Moves {
 			for _, m2 := range p2Moves {
-				// no bumping (yet)
-				if m1.Result == m2.Result {
+				// no bumping (yet) (except to win the game)
+				if m1.Result == m2.Result && m1.Result != goal {
 					continue
 				}
 

@@ -8,7 +8,6 @@ import (
 	"ztg/dice"
 )
 
-// TODO: Add 2nd pawn
 // TODO: Handle "bump"
 // TODO: logging for play-by-play (also record moves)
 // TODO: initialize game between players (who goes first?)
@@ -40,6 +39,14 @@ func (s *State) Move(m Move) {
 func (s *State) PeerMove(m Move) {
 	s.PeerPawn1Pos = m.Pawn1.Result
 	s.PeerPawn2Pos = m.Pawn2.Result
+}
+
+func (s State) Win() bool {
+	return s.Pawn1Pos == goal && s.Pawn2Pos == goal
+}
+
+func (s State) Lose() bool {
+	return s.PeerPawn1Pos == goal && s.PeerPawn2Pos == goal
 }
 
 type Player struct {
@@ -86,7 +93,7 @@ func (p *Player) Play(ctx context.Context, goFirst bool) (bool, error) {
 		}
 
 		// fmt.Printf("%s (%d): Moving %d -> %d\n", p.name, turnNum, pos, newPos)
-		if state.Pawn1Pos == goal {
+		if state.Win() {
 			return true, nil
 		}
 
@@ -95,7 +102,7 @@ func (p *Player) Play(ctx context.Context, goFirst bool) (bool, error) {
 			return false, fmt.Errorf("error doing other player's first turn: %w", err)
 		}
 
-		if state.PeerPawn1Pos == goal {
+		if state.Lose() {
 			return false, nil
 		}
 
@@ -141,6 +148,7 @@ func (p *Player) TakeTurn(ctx context.Context, state *State) error {
 
 	move := p.strategy.ChooseMove(ctx, *state, moves)
 	state.Move(move)
+	// fmt.Printf("%s: %s = %d | %s = %d\n", p.name, move.Pawn1.Expr.String(), move.Pawn1.Result, move.Pawn2.Expr.String(), move.Pawn2.Result)
 
 	err = p.peer.SendMove(ctx, move)
 	if err != nil {
@@ -153,14 +161,13 @@ func (p *Player) TakeTurn(ctx context.Context, state *State) error {
 func validateMove(rolls []uint16, state State, move Move) error {
 	d1, d2 := int(rolls[0]), int(rolls[1])
 
-	moves := generateMoves(state.PeerPawn1Pos, state.PeerPawn1Pos, d1, d2)
+	moves := generateMoves(state.PeerPawn1Pos, state.PeerPawn2Pos, d1, d2)
 	if len(moves) == 0 {
 		return errors.New("no valid moves")
 	}
 
 	if slices.ContainsFunc(moves, func(m Move) bool {
-		return m.Pawn1.Result == move.Pawn1.Result
-		// return m.Pawn1.Result == move.Pawn1.Result && m.Pawn2.Result == move.Pawn2.Result
+		return m.Pawn1.Result == move.Pawn1.Result && m.Pawn2.Result == move.Pawn2.Result
 	}) {
 		return nil
 	}
