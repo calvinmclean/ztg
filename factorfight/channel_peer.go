@@ -6,8 +6,8 @@ import (
 )
 
 type ChannelPeer struct {
-	in  chan Turn
-	out chan Turn
+	in  chan Move
+	out chan Move
 
 	dicePeer dice.Peer
 }
@@ -15,20 +15,20 @@ type ChannelPeer struct {
 var _ Peer = ChannelPeer{}
 
 func NewChannelPeers(dicePeer1, dicePeer2 dice.Peer) (ChannelPeer, ChannelPeer) {
-	in1 := make(chan Turn, 1)
-	in2 := make(chan Turn, 1)
+	in1 := make(chan Move, 1)
+	in2 := make(chan Move, 1)
 
 	return ChannelPeer{in: in1, out: in2, dicePeer: dicePeer2}, ChannelPeer{in: in2, out: in1, dicePeer: dicePeer1}
 }
 
-// RecvTurn implements Peer.
-func (c ChannelPeer) RecvTurn(context.Context) (Turn, error) {
+// RecvMove implements Peer.
+func (c ChannelPeer) RecvMove(context.Context) (Move, error) {
 	return <-c.in, nil
 }
 
-// SendTurn implements Peer.
-func (c ChannelPeer) SendTurn(ctx context.Context, turn Turn) error {
-	c.out <- turn
+// SendMove implements Peer.
+func (c ChannelPeer) SendMove(ctx context.Context, move Move) error {
+	c.out <- move
 	return nil
 }
 

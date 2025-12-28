@@ -17,14 +17,9 @@ import (
 const goal = 101
 
 type Peer interface {
-	SendTurn(context.Context, Turn) error
-	RecvTurn(context.Context) (Turn, error)
+	SendMove(context.Context, Move) error
+	RecvMove(context.Context) (Move, error)
 	Dice() dice.Peer
-}
-
-type Turn struct {
-	Pawn1Pos int
-	Pawn2Pos int
 }
 
 // State represents the current state of the game
@@ -35,16 +30,16 @@ type State struct {
 	PeerPawn2Pos int
 }
 
-// Turn updates the pawn positions according to the turn
-func (s *State) Turn(t Turn) {
-	s.Pawn1Pos = t.Pawn1Pos
-	s.Pawn2Pos = t.Pawn2Pos
+// Move updates the pawn positions according to the Move
+func (s *State) Move(m Move) {
+	s.Pawn1Pos = m.Pawn1.Result
+	s.Pawn2Pos = m.Pawn2.Result
 }
 
-// Turn updates the peer's pawn positions according to the turn
-func (s *State) PeerTurn(t Turn) {
-	s.PeerPawn1Pos = t.Pawn1Pos
-	s.PeerPawn2Pos = t.Pawn2Pos
+// PeerMove updates the peer's pawn positions according to the Move
+func (s *State) PeerMove(m Move) {
+	s.PeerPawn1Pos = m.Pawn1.Result
+	s.PeerPawn2Pos = m.Pawn2.Result
 }
 
 type Player struct {
@@ -114,17 +109,17 @@ func (p *Player) OtherTurn(ctx context.Context, state *State) error {
 		return fmt.Errorf("error rolling: %w", err)
 	}
 
-	peerTurn, err := p.peer.RecvTurn(ctx)
+	peerMove, err := p.peer.RecvMove(ctx)
 	if err != nil {
 		return fmt.Errorf("error receiving turn: %w", err)
 	}
 
-	err = validateTurn(rolls, *state, peerTurn)
+	err = validateMove(rolls, *state, peerMove)
 	if err != nil {
 		return err
 	}
 
-	state.PeerTurn(peerTurn)
+	state.PeerMove(peerMove)
 
 	return nil
 }
@@ -137,17 +132,17 @@ func (p *Player) TakeTurn(ctx context.Context, state *State) error {
 
 	d1, d2 := int(rolls[0]), int(rolls[1])
 
-	// fmt.Printf("%s (%d): Roll [%d, %d]\n", p.name, i, d1, d2)
+	// fmt.Printf("%s: Roll [%d, %d]\n", p.name, d1, d2)
 
-	moves := validMoves(state.Pawn1Pos, d1, d2)
+	moves := generateMoves(state.Pawn1Pos, state.Pawn2Pos, d1, d2)
 	if len(moves) == 0 {
 		return errors.New("no valid moves")
 	}
 
-	turn := p.strategy.ChooseMove(ctx, *state, moves)
-	state.Turn(turn)
+	move := p.strategy.ChooseMove(ctx, *state, moves)
+	state.Move(move)
 
-	err = p.peer.SendTurn(ctx, turn)
+	err = p.peer.SendMove(ctx, move)
 	if err != nil {
 		return fmt.Errorf("error sending turn: %w", err)
 	}
@@ -155,50 +150,19 @@ func (p *Player) TakeTurn(ctx context.Context, state *State) error {
 	return nil
 }
 
-func validMoves(pos, d1, d2 int) []int {
-	moves := []int{}
-
-	// Addition
-	if pos+d1+d2 <= goal {
-		moves = append(moves, pos+d1+d2)
-	}
-
-	// Subtraction
-	if pos-(d1+d2) >= 0 {
-		moves = append(moves, pos-(d1+d2))
-	}
-
-	// Multiplication
-	if pos == 0 {
-		if d1*d2 <= goal {
-			moves = append(moves, d1*d2)
-		}
-	} else if pos*(d1*d2) <= goal {
-		moves = append(moves, pos*(d1*d2))
-	}
-
-	// Division (exact only)
-	product := d1 * d2
-	if product != 0 && pos%product == 0 {
-		result := pos / product
-		if result >= 0 {
-			moves = append(moves, result)
-		}
-	}
-
-	return moves
-}
-
-func validateTurn(rolls []uint16, state State, turn Turn) error {
+func validateMove(rolls []uint16, state State, move Move) error {
 	d1, d2 := int(rolls[0]), int(rolls[1])
 
-	moves := validMoves(state.PeerPawn1Pos, d1, d2)
+	moves := generateMoves(state.PeerPawn1Pos, state.PeerPawn1Pos, d1, d2)
 	if len(moves) == 0 {
 		return errors.New("no valid moves")
 	}
 
-	if slices.Contains(moves, turn.Pawn1Pos) {
+	if slices.ContainsFunc(moves, func(m Move) bool {
+		return m.Pawn1.Result == move.Pawn1.Result
+		// return m.Pawn1.Result == move.Pawn1.Result && m.Pawn2.Result == move.Pawn2.Result
+	}) {
 		return nil
 	}
-	return fmt.Errorf("other player completed invalid move: [%d, %d] %d -> %d", d1, d2, state.PeerPawn1Pos, state.Pawn1Pos)
+	return fmt.Errorf("other player completed invalid move: %s = %d", move.Pawn1.Expr.String(), move.Pawn1.Result)
 }
