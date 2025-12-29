@@ -24,18 +24,24 @@ func TestGame(t *testing.T) {
 		errChan := make(chan error, 1)
 		p1Chan := make(chan bool, 1)
 		go func() {
-			p1Win, err := p1.Play(ctx, p1First)
+			p1Win, _, err := p1.Play(ctx, p1First)
 			p1Chan <- p1Win
 			errChan <- err
 		}()
 
-		p2Win, err := p2.Play(ctx, !p1First)
+		p2Win, _, err := p2.Play(ctx, !p1First)
 		if err != nil {
+			if gameErr, ok := err.(*factorfight.GameError); ok {
+				t.Fatalf("unexpected error: %v\nGame log:\n%s", err, gameErr.GameLog.String())
+			}
 			t.Fatalf("unexpected error: %v", err)
 		}
 
 		err = <-errChan
 		if err != nil {
+			if gameErr, ok := err.(*factorfight.GameError); ok {
+				t.Fatalf("unexpected error from P1: %v\nGame log:\n%s", err, gameErr.GameLog.String())
+			}
 			t.Fatalf("unexpected error from P1: %v", err)
 		}
 
