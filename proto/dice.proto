@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package dice;
+
+option go_package = "proto/dice";
+
+// MessageType represents the type of the message being sent.
+enum MessageType {
+  MSG_TYPE_UNDEFINED = 0;
+  MSG_TYPE_COMMITMENT = 1;
+  MSG_TYPE_SECRET = 2;
+  MSG_TYPE_ROLL_CONFIRMATION = 3;
+}
+
+// Message represents data exchanged between peers.
+message Message {
+  MessageType msg_type = 1; // Type of the message (e.g., Commitment, Secret, etc.)
+  bytes data = 2;           // Binary data content (e.g., commitment hash, secret)
+}
+
+// Empty message for responses without content
+message Empty {}
+
+// RollerService defines the gRPC service for interacting with dice rollers.
+service RollerService {
+  // ReceiveMessage allows sending messages and receives an empty response.
+  rpc ReceiveMessage(Message) returns (Empty);
+}
