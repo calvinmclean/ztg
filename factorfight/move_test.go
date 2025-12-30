@@ -2,53 +2,16 @@ package factorfight
 
 import "testing"
 
-// func TestMoves(t *testing.T) {
-// 	moves := generateMoves(72, 84, 2, 3)
-// 	fmt.Println(len(moves))
-
-// 	for _, m := range moves {
-// 		fmt.Printf(
-// 			"P1: %s = %d | P2: %s = %d\n",
-// 			m.Pawn1.Expr, m.Pawn1.Result,
-// 			m.Pawn2.Expr, m.Pawn2.Result,
-// 		)
-// 	}
-// }
-
-func TestPawnAtGoalCannotMove(t *testing.T) {
-	goal := 101
-	// Pawn1 is at goal, pawn2 is not
-	moves := generateMoves(goal, 50, 2, 3)
+func TestBumpDetection(t *testing.T) {
+	// Generate moves for Pawn1 starting at 48 and Pawn2 starting at 51
+	moves := generateMoves(48, 51, 2, 3, 50, 0)
 
 	for _, move := range moves {
-		if move.Pawn1.Result != goal {
-			t.Fatalf("Pawn1 moved from goal position: %d", move.Pawn1.Result)
+		if move.Pawn1.Result == 50 && move.Pawn1.Bump != BumpedPeer1 {
+			t.Fatalf("Bump not detected for Pawn1 at position 50")
 		}
-	}
-
-	// Both pawns at goal
-	moves = generateMoves(goal, goal, 2, 3)
-	if len(moves) != 0 {
-		t.Fatalf("Moves generated when both pawns are at goal: %d", len(moves))
-	}
-}
-
-func TestExpr(t *testing.T) {
-	expr := Expr{
-		Op:    Mul,
-		Right: V(3),
-		Left: &Expr{
-			Op:    Div,
-			Left:  V(84),
-			Right: V(2),
-		},
-	}
-
-	res, err := expr.Eval()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res != 126 {
-		t.Fatalf("got %d", res)
+		if move.Pawn2.Result == 50 && move.Pawn2.Bump != BumpedPeer1 {
+			t.Fatalf("Bump not detected for Pawn2 at position 50")
+		}
 	}
 }

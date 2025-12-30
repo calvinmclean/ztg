@@ -8,6 +8,40 @@ import (
 	"ztg/factorfight"
 )
 
+func TestBumps(t *testing.T) {
+	state := &factorfight.State{
+		Pawn1Pos:     5,
+		Pawn2Pos:     10,
+		PeerPawn1Pos: 8,
+		PeerPawn2Pos: 12,
+	}
+
+	move := factorfight.Move{
+		Pawn1: factorfight.PawnMove{Result: 12, Bump: factorfight.BumpedPeer2},
+		Pawn2: factorfight.PawnMove{Result: 20},
+	}
+	state.Move(move)
+	if state.Pawn1Pos == 0 {
+		t.Errorf("expected no bump")
+	}
+	if state.PeerPawn2Pos != 0 {
+		t.Errorf("expected PeerPawn2 to reset on bump, got %d", state.PeerPawn2Pos)
+	}
+
+	state = &factorfight.State{
+		Pawn1Pos: 5,
+		Pawn2Pos: 10,
+	}
+	move = factorfight.Move{
+		Pawn1: factorfight.PawnMove{Result: 10},
+		Pawn2: factorfight.PawnMove{Result: 10, Bump: factorfight.BumpedSelf},
+	}
+	state.Move(move)
+	if state.Pawn1Pos != 0 {
+		t.Errorf("expected Pawn1 to reset on self bump, got %d", state.Pawn1Pos)
+	}
+}
+
 func TestGame(t *testing.T) {
 	const sides = 10
 	dicePeer1, dicePeer2 := dice.NewChannelPeers()

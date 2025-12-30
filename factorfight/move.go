@@ -10,9 +10,34 @@ type Move struct {
 	Pawn2 PawnMove
 }
 
+type BumpStatus int
+
+const (
+	NoBump BumpStatus = iota
+	BumpedPeer1
+	BumpedPeer2
+	BumpedSelf
+)
+
+func (b BumpStatus) String() string {
+	switch b {
+	case NoBump:
+		return "NoBump"
+	case BumpedPeer1:
+		return "BumpedPeer1"
+	case BumpedPeer2:
+		return "BumpedPeer2"
+	case BumpedSelf:
+		return "BumpedSelf"
+	default:
+		return "Unknown"
+	}
+}
+
 type PawnMove struct {
 	Expr   *Expr
 	Result int
+	Bump   BumpStatus
 }
 
 type Op string
@@ -213,7 +238,7 @@ func pawnMoves(start int, dice []int) []PawnMove {
 	}
 }
 
-func generateMoves(p1, p2 int, d1, d2 int) []Move {
+func generateMoves(p1, p2 int, d1, d2 int, peer1, peer2 int) []Move {
 	var moves []Move
 
 	for _, alloc := range allAllocations(d1, d2, p1, p2) {
@@ -222,11 +247,6 @@ func generateMoves(p1, p2 int, d1, d2 int) []Move {
 
 		for _, m1 := range p1Moves {
 			for _, m2 := range p2Moves {
-				// no bumping (yet) (except to win the game)
-				if m1.Result == m2.Result && m1.Result != goal {
-					continue
-				}
-
 				// one pawn must move
 				if m1.Result == p1 && m2.Result == p2 {
 					continue
@@ -236,6 +256,31 @@ func generateMoves(p1, p2 int, d1, d2 int) []Move {
 				if m1.Result > goal || m2.Result > goal {
 					continue
 				}
+
+				// Detect bumps
+				bumpStatusP1 := NoBump
+				bumpStatusP2 := NoBump
+
+				if m1.Result == peer1 && peer1 != goal {
+					bumpStatusP1 = BumpedPeer1
+				}
+				if m2.Result == peer1 && peer1 != goal {
+					bumpStatusP2 = BumpedPeer1
+				}
+				if m1.Result == peer2 && peer2 != goal {
+					bumpStatusP1 = BumpedPeer2
+				}
+				if m2.Result == peer2 && peer2 != goal {
+					bumpStatusP2 = BumpedPeer2
+				}
+
+				// Self bump always has P2 buming P1
+				if m1.Result == m2.Result && m1.Result != goal {
+					bumpStatusP2 = BumpedSelf
+				}
+
+				m1.Bump = bumpStatusP1
+				m2.Bump = bumpStatusP2
 
 				moves = append(moves, Move{
 					Pawn1: m1,
