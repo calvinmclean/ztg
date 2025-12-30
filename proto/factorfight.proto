@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package factorfight;
+
+option go_package = "proto/factorfight";
+
+// Represents a single PawnMove in the FactorFight game.
+message PawnMove {
+    int32 result = 1;       // Result of the move
+    int32 bump = 2;         // Bump status (encoded as integer)
+    string expr = 3;        // Expression for the move (serialized as a string)
+}
+
+// Represents a player's move in the FactorFight game.
+message Move {
+    PawnMove pawn1 = 1;     // Pawn1's move
+    PawnMove pawn2 = 2;     // Pawn2's move
+}
+
+// Service defining RPCs for FactorFight game interactions.
+service FactorFightService {
+    // SubmitMove allows a player to submit their move.
+    rpc ReceiveMove(Move) returns (Empty);
+}
+
+// Empty message for responses without content.
+message Empty {}

@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"ztg/dice"
+	"ztg/factorfight"
 	protodice "ztg/proto/dice"
+	protofactorfight "ztg/proto/factorfight"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -26,7 +28,9 @@ func main() {
 
 	if addr != "" && peerAddr != "" {
 		if os.Getenv("MODE") == "grpc" {
-			runGRPC(sides, addr, peerAddr)
+			// runGRPC(sides, addr, peerAddr)
+			// TODO improve command inputs for better usability
+			runGRPCFactorfight(addr, peerAddr)
 		} else {
 			runHTTP(sides, addr, peerAddr)
 		}
@@ -164,4 +168,74 @@ func runSimple(sides uint8) {
 	}
 
 	fmt.Println(r1)
+}
+
+// TODO: cleanup, improve, reduce duplication. Create better example of running a Server (provide pkg?)
+func runGRPCFactorfight(addr, peerAddr string) {
+	conn, err := grpc.NewClient(
+		peerAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		log.Fatalf("failed to connect: %v", err)
+	}
+	defer conn.Close()
+
+	diceClient := protodice.NewRollerServiceClient(conn)
+	ffClient := protofactorfight.NewFactorFightServiceClient(conn)
+
+	peer, err := dice.NewGRPCPeer(diceClient)
+	if err != nil {
+		fmt.Printf("[ERROR] Failed to create gRPC peer: %v\n", err)
+		os.Exit(1)
+	}
+
+	grpcServer := grpc.NewServer()
+	protodice.RegisterRollerServiceServer(grpcServer, peer)
+
+	f, err := factorfight.NewGRPCPeer(peer, ffClient)
+	protofactorfight.RegisterFactorFightServiceServer(grpcServer, f)
+
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		fmt.Printf("[ERROR] Failed to bind gRPC server: %v\n", err)
+		fmt.Printf("[DEBUG] [ERROR] Failed to bind gRPC server on %s. Error details: %v\n", addr, err)
+		return
+	}
+
+	go func() {
+		if err := grpcServer.Serve(listener); err != nil {
+			fmt.Printf("[ERROR] Failed to serve gRPC: %v\n", err)
+		}
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+
+	ctx, bigCancel := context.WithCancel(context.Background())
+	defer bigCancel()
+
+	go func() {
+		<-sigCh
+		bigCancel()
+		grpcServer.GracefulStop()
+	}()
+
+	player, err := factorfight.NewPlayer("P1", factorfight.DefaultStrategy, f)
+	if err != nil {
+		fmt.Printf("[ERROR] error creating player: %v\n", err)
+		return
+	}
+
+	ctx, cancel = context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	_, log, err := player.Play(ctx, addr == ":50052")
+	if err != nil {
+		fmt.Printf("[ERROR] Player encountered an error during gameplay: %v\n", err)
+		return
+	}
+
+	fmt.Println(log)
 }
