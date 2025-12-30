@@ -177,7 +177,21 @@ type diceAllocation struct {
 	Pawn2 []int
 }
 
-func allAllocations(d1, d2 int) []diceAllocation {
+func allAllocations(d1, d2 int, p1, p2 int) []diceAllocation {
+	if p1 == goal && p2 == goal {
+		return []diceAllocation{}
+	}
+	if p1 == goal {
+		return []diceAllocation{
+			{Pawn1: []int{}, Pawn2: []int{d1, d2}},
+		}
+	}
+	if p2 == goal {
+		return []diceAllocation{
+			{Pawn1: []int{d1, d2}, Pawn2: []int{}},
+		}
+	}
+
 	return []diceAllocation{
 		{Pawn1: []int{}, Pawn2: []int{d1, d2}},
 		{Pawn1: []int{d1, d2}, Pawn2: []int{}},
@@ -202,7 +216,7 @@ func pawnMoves(start int, dice []int) []PawnMove {
 func generateMoves(p1, p2 int, d1, d2 int) []Move {
 	var moves []Move
 
-	for _, alloc := range allAllocations(d1, d2) {
+	for _, alloc := range allAllocations(d1, d2, p1, p2) {
 		p1Moves := pawnMoves(p1, alloc.Pawn1)
 		p2Moves := pawnMoves(p2, alloc.Pawn2)
 

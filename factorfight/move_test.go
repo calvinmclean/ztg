@@ -15,6 +15,24 @@ import "testing"
 // 	}
 // }
 
+func TestPawnAtGoalCannotMove(t *testing.T) {
+	goal := 101
+	// Pawn1 is at goal, pawn2 is not
+	moves := generateMoves(goal, 50, 2, 3)
+
+	for _, move := range moves {
+		if move.Pawn1.Result != goal {
+			t.Fatalf("Pawn1 moved from goal position: %d", move.Pawn1.Result)
+		}
+	}
+
+	// Both pawns at goal
+	moves = generateMoves(goal, goal, 2, 3)
+	if len(moves) != 0 {
+		t.Fatalf("Moves generated when both pawns are at goal: %d", len(moves))
+	}
+}
+
 func TestExpr(t *testing.T) {
 	expr := Expr{
 		Op:    Mul,
