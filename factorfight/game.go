@@ -218,6 +218,16 @@ func NewPlayer(name string, strategy Strategy, peer Peer) (Player, error) {
 	}, nil
 }
 
+// PlayWithInitiative will first roll initiative to decide who goes first
+func (p *Player) PlayWithInitiative(ctx context.Context, high bool) (bool, GameLog, error) {
+	first, err := p.RollInitiative(ctx, high)
+	if err != nil {
+		return false, GameLog{}, fmt.Errorf("error rolling initiative: %w", err)
+	}
+
+	return p.Play(ctx, first)
+}
+
 func (p *Player) Play(ctx context.Context, goFirst bool) (bool, GameLog, error) {
 	state := &State{}
 
@@ -329,4 +339,22 @@ func validateMove(rolls []uint16, state State, move Move) error {
 		return fmt.Errorf("other player completed invalid move: %s = %d", move.Pawn1.Expr.String(), move.Pawn1.Result)
 	}
 	return nil
+}
+
+// RollInitiative rolls a 10-sided die to determine who goes first. If high is true, this player wants 6-10, otherwise 1-5.
+// Returns true if going first,
+func (p Player) RollInitiative(ctx context.Context, high bool) (bool, error) {
+	rolls, err := p.roller.RollSync(ctx, 1)
+	if err != nil {
+		return false, fmt.Errorf("error rolling: %w", err)
+	}
+	if len(rolls) != 1 {
+		return false, fmt.Errorf("unexpected number of rolls: %d", len(rolls))
+	}
+
+	if high {
+		return rolls[0] > 5, nil
+	}
+
+	return rolls[0] <= 5, nil
 }

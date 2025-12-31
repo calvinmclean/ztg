@@ -53,17 +53,17 @@ func TestGame(t *testing.T) {
 
 	ctx := context.Background()
 
-	p1First := true
+	high := true
 	for range 100 {
 		errChan := make(chan error, 1)
 		p1Chan := make(chan bool, 1)
 		go func() {
-			p1Win, _, err := p1.Play(ctx, p1First)
+			p1Win, _, err := p1.PlayWithInitiative(ctx, high)
 			p1Chan <- p1Win
 			errChan <- err
 		}()
 
-		p2Win, _, err := p2.Play(ctx, !p1First)
+		p2Win, _, err := p2.PlayWithInitiative(ctx, !high)
 		if err != nil {
 			if gameErr, ok := err.(*factorfight.GameError); ok {
 				t.Fatalf("unexpected error: %v\nGame log:\n%s", err, gameErr.GameLog.String())
@@ -85,6 +85,6 @@ func TestGame(t *testing.T) {
 			t.Fatalf("unexpected win result: p1=%t, p2=%t", p1Win, p2Win)
 		}
 
-		p1First = !p1First
+		high = !high
 	}
 }

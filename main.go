@@ -231,7 +231,7 @@ func runGRPCFactorfight(addr, peerAddr string) {
 
 	ctx, cancel = context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	_, log, err := player.Play(ctx, addr == ":50052")
+	_, log, err := player.PlayWithInitiative(ctx, addr == ":50052")
 	if err != nil {
 		fmt.Printf("[ERROR] Player encountered an error during gameplay: %v\n", err)
 		return
