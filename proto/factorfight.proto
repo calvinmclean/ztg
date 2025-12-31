@@ -15,6 +15,7 @@ message PawnMove {
 message Move {
     PawnMove pawn1 = 1;     // Pawn1's move
     PawnMove pawn2 = 2;     // Pawn2's move
+    string session_id = 3;
 }
 
 // Service defining RPCs for FactorFight game interactions.

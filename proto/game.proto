@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package game;
+
+option go_package = "proto/game";
+
+// A request message for initiating a game.
+message Identity {
+    string name = 1;    // Name of the entity
+    string address = 2; // Address of the entity
+}
+
+message InitiateGameRequest {
+    Identity player_identity = 1; // Player identity details
+    string game_name = 3;     // Name of the game to initiate
+}
+
+// A generic empty response message.
+message Empty {}
+
+// A response message for initiating a game.
+message InitiateGameResponse {
+    bool accepted = 1;
+    string session_id = 2;
+    string message = 3;
+}
+
+// ChallengeRequest is used to tell your server to challenge another server
+message ChallengeRequest {
+    string target = 1;
+    string game_name = 2;
+}
+
+message ChallengeResponse {
+    bool accepted = 1;
+    string session_id = 2;
+    string message = 3;
+}
+
+// GameService defines gRPC services for game initiation.
+service GameService {
+    // InitiateGame accepts player details and initiates the chosen game.
+    rpc InitiateGame(InitiateGameRequest) returns (InitiateGameResponse);
+    rpc Challenge(ChallengeRequest) returns (ChallengeResponse);
+}

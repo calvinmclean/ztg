@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3
-// source: proto/factorfight.proto
+// source: factorfight.proto
 
 package factorfight
 
@@ -123,5 +123,5 @@ var FactorFightService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/factorfight.proto",
+	Metadata: "factorfight.proto",
 }

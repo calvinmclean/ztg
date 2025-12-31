@@ -109,10 +109,13 @@ func (r Roll) Get(n uint8) ([]uint16, error) {
 	case err = <-r.err:
 		result = <-r.result
 	}
+	if err != nil {
+		return nil, err
+	}
 	if len(result) < int(n) {
 		return nil, fmt.Errorf("unexpected size of result rolls: %d", len(result))
 	}
-	return result[0:n], err
+	return result[0:n], nil
 }
 
 // RollSync will start and complete the roll in one call. It will block to communicate with the peer

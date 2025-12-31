@@ -6,14 +6,37 @@ import (
 	"fmt"
 	"slices"
 	"ztg/dice"
+	"ztg/identity"
 )
 
 // TODO: implement state validation step? This could be useful for detecting bump errors if one player doesn't move a bump correctly
 // Or maybe this type of thing will always be caught by invalid moves?
 
-// TODO: initialize game between players (who goes first?)
-
 const goal = 101
+
+// Session holds the Peer and Roller instances for a game.
+type Session struct {
+	ID       string
+	Self     identity.Identity
+	Peer     Peer
+	Roller   dice.Roller
+	Strategy Strategy
+}
+
+func NewSession(id string, self identity.Identity, peer Peer, strategy Strategy) (Session, error) {
+	roller, err := dice.NewRoller("roller", 10, peer.Dice())
+	if err != nil {
+		return Session{}, fmt.Errorf("error creating roller: %w", err)
+	}
+
+	return Session{
+		ID:       id,
+		Roller:   roller,
+		Peer:     peer,
+		Strategy: strategy,
+		Self:     self,
+	}, nil
+}
 
 // GameError wraps an error with the game log
 type GameError struct {
@@ -33,6 +56,7 @@ type Peer interface {
 	SendMove(context.Context, Move) error
 	RecvMove(context.Context) (Move, error)
 	Dice() dice.Peer
+	Identity() identity.Identity
 }
 
 // GameLogEntry represents a single move in the game log
@@ -166,9 +190,9 @@ func (gl GameLog) String() string {
 	result += "================\n"
 
 	for _, entry := range gl {
-		player := "Peer"
-		if !entry.IsPeer {
-			player = entry.Player
+		player := entry.Player
+		if entry.IsPeer {
+			player += " (peer)"
 		}
 
 		result += fmt.Sprintf("Turn %d - %s:\n", entry.TurnNum, player)
@@ -193,46 +217,21 @@ func (gl GameLog) String() string {
 	return result
 }
 
-type Player struct {
-	name     string
-	roller   dice.Roller
-	peer     Peer
-	strategy Strategy
-}
-
-func NewPlayer(name string, strategy Strategy, peer Peer) (Player, error) {
-	roller, err := dice.NewRoller(name, 10, peer.Dice())
-	if err != nil {
-		return Player{}, fmt.Errorf("error creating roller: %w", err)
-	}
-
-	if strategy == nil {
-		strategy = DefaultStrategy
-	}
-
-	return Player{
-		name:     name,
-		roller:   roller,
-		peer:     peer,
-		strategy: strategy,
-	}, nil
-}
-
 // PlayWithInitiative will first roll initiative to decide who goes first
-func (p *Player) PlayWithInitiative(ctx context.Context, high bool) (bool, GameLog, error) {
-	first, err := p.RollInitiative(ctx, high)
+func (s *Session) PlayWithInitiative(ctx context.Context, high bool) (bool, GameLog, error) {
+	first, err := s.RollInitiative(ctx, high)
 	if err != nil {
 		return false, GameLog{}, fmt.Errorf("error rolling initiative: %w", err)
 	}
 
-	return p.Play(ctx, first)
+	return s.Play(ctx, first)
 }
 
-func (p *Player) Play(ctx context.Context, goFirst bool) (bool, GameLog, error) {
+func (s *Session) Play(ctx context.Context, goFirst bool) (bool, GameLog, error) {
 	state := &State{}
 
 	if !goFirst {
-		err := p.OtherTurn(ctx, state, 0)
+		err := s.OtherTurn(ctx, state, 0)
 		if err != nil {
 			return false, state.GameLog, &GameError{
 				GameLog: state.GameLog,
@@ -244,7 +243,7 @@ func (p *Player) Play(ctx context.Context, goFirst bool) (bool, GameLog, error) 
 	turnNum := 0
 	for {
 		// fmt.Printf("%s (%d): Taking turn\n", p.name, turnNum)
-		err := p.TakeTurn(ctx, state, turnNum)
+		err := s.TakeTurn(ctx, state, turnNum)
 		if err != nil {
 			return false, state.GameLog, &GameError{
 				GameLog: state.GameLog,
@@ -257,7 +256,7 @@ func (p *Player) Play(ctx context.Context, goFirst bool) (bool, GameLog, error) 
 			return true, state.GameLog, nil
 		}
 
-		err = p.OtherTurn(ctx, state, turnNum)
+		err = s.OtherTurn(ctx, state, turnNum)
 		if err != nil {
 			return false, state.GameLog, &GameError{
 				GameLog: state.GameLog,
@@ -273,13 +272,13 @@ func (p *Player) Play(ctx context.Context, goFirst bool) (bool, GameLog, error) 
 	}
 }
 
-func (p *Player) OtherTurn(ctx context.Context, state *State, turnNum int) error {
-	rolls, err := p.roller.RollSync(ctx, 2)
+func (s *Session) OtherTurn(ctx context.Context, state *State, turnNum int) error {
+	rolls, err := s.Roller.RollSync(ctx, 2)
 	if err != nil {
 		return fmt.Errorf("error rolling: %w", err)
 	}
 
-	peerMove, err := p.peer.RecvMove(ctx)
+	peerMove, err := s.Peer.RecvMove(ctx)
 	if err != nil {
 		return fmt.Errorf("error receiving turn: %w", err)
 	}
@@ -289,14 +288,14 @@ func (p *Player) OtherTurn(ctx context.Context, state *State, turnNum int) error
 		return err
 	}
 
-	state.AddGameLogEntry("Peer", peerMove, turnNum, true, rolls)
+	state.AddGameLogEntry(s.Peer.Identity().Name, peerMove, turnNum, true, rolls)
 	state.PeerMove(peerMove)
 
 	return nil
 }
 
-func (p *Player) TakeTurn(ctx context.Context, state *State, turnNum int) error {
-	rolls, err := p.roller.RollSync(ctx, 2)
+func (s *Session) TakeTurn(ctx context.Context, state *State, turnNum int) error {
+	rolls, err := s.Roller.RollSync(ctx, 2)
 	if err != nil {
 		return fmt.Errorf("error rolling: %w", err)
 	}
@@ -310,13 +309,13 @@ func (p *Player) TakeTurn(ctx context.Context, state *State, turnNum int) error 
 		return errors.New("no valid moves")
 	}
 
-	move := p.strategy.ChooseMove(ctx, *state, moves)
+	move := s.Strategy.ChooseMove(ctx, *state, moves)
 	rollsSlice := []uint16{uint16(d1), uint16(d2)}
-	state.AddGameLogEntry(p.name, move, turnNum, false, rollsSlice)
+	state.AddGameLogEntry(s.Self.Name, move, turnNum, false, rollsSlice)
 	state.Move(move)
 	// fmt.Printf("%s: %s = %d | %s = %d\n", p.name, move.Pawn1.Expr.String(), move.Pawn1.Result, move.Pawn2.Expr.String(), move.Pawn2.Result)
 
-	err = p.peer.SendMove(ctx, move)
+	err = s.Peer.SendMove(ctx, move)
 	if err != nil {
 		return fmt.Errorf("error sending turn: %w", err)
 	}
@@ -343,8 +342,8 @@ func validateMove(rolls []uint16, state State, move Move) error {
 
 // RollInitiative rolls a 10-sided die to determine who goes first. If high is true, this player wants 6-10, otherwise 1-5.
 // Returns true if going first,
-func (p Player) RollInitiative(ctx context.Context, high bool) (bool, error) {
-	rolls, err := p.roller.RollSync(ctx, 1)
+func (s Session) RollInitiative(ctx context.Context, high bool) (bool, error) {
+	rolls, err := s.Roller.RollSync(ctx, 1)
 	if err != nil {
 		return false, fmt.Errorf("error rolling: %w", err)
 	}

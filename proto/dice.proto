@@ -16,6 +16,7 @@ enum MessageType {
 message Message {
   MessageType msg_type = 1; // Type of the message (e.g., Commitment, Secret, etc.)
   bytes data = 2;           // Binary data content (e.g., commitment hash, secret)
+  string session_id = 3;
 }
 
 // Empty message for responses without content

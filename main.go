@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,9 +11,7 @@ import (
 	"time"
 
 	"ztg/dice"
-	"ztg/factorfight"
-	protodice "ztg/proto/dice"
-	protofactorfight "ztg/proto/factorfight"
+	"ztg/server"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -28,9 +25,7 @@ func main() {
 
 	if addr != "" && peerAddr != "" {
 		if os.Getenv("MODE") == "grpc" {
-			// runGRPC(sides, addr, peerAddr)
-			// TODO improve command inputs for better usability
-			runGRPCFactorfight(addr, peerAddr)
+			runGRPCServer(addr, peerAddr)
 		} else {
 			runHTTP(sides, addr, peerAddr)
 		}
@@ -80,75 +75,6 @@ func runHTTP(sides uint8, addr, peerAddr string) {
 	}
 }
 
-func runGRPC(sides uint8, addr, peerAddr string) {
-	conn, err := grpc.NewClient(
-		peerAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		log.Fatalf("failed to connect: %v", err)
-	}
-	defer conn.Close()
-
-	client := protodice.NewRollerServiceClient(conn)
-
-	peer, err := dice.NewGRPCPeer(client)
-	if err != nil {
-		fmt.Printf("[ERROR] Failed to create gRPC peer: %v\n", err)
-		os.Exit(1)
-	}
-
-	grpcServer := grpc.NewServer()
-	protodice.RegisterRollerServiceServer(grpcServer, peer)
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		fmt.Printf("[ERROR] Failed to bind gRPC server: %v\n", err)
-		fmt.Printf("[DEBUG] [ERROR] Failed to bind gRPC server on %s. Error details: %v\n", addr, err)
-		return
-	}
-
-	go func() {
-		if err := grpcServer.Serve(listener); err != nil {
-			fmt.Printf("[ERROR] Failed to serve gRPC: %v\n", err)
-		}
-	}()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	d, err := dice.NewRoller(addr, sides, peer)
-	if err != nil {
-		fmt.Printf("[ERROR] Failed to create Roller: %v\n", err)
-		os.Exit(1)
-	}
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-
-	ctx, bigCancel := context.WithCancel(context.Background())
-	defer bigCancel()
-
-	go func() {
-		<-sigCh
-		bigCancel()
-		grpcServer.GracefulStop()
-	}()
-
-	for {
-		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-		roll := d.Roll(ctx)
-		out, err := roll.Get(8)
-		cancel()
-
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		fmt.Println(out)
-		time.Sleep(1 * time.Second)
-	}
-}
-
 // runSimple runs a single roll using two in-memory Rollers with ChannelPeers
 func runSimple(sides uint8) {
 	peer1, peer2 := dice.NewChannelPeers()
@@ -170,8 +96,7 @@ func runSimple(sides uint8) {
 	fmt.Println(r1)
 }
 
-// TODO: cleanup, improve, reduce duplication. Create better example of running a Server (provide pkg?)
-func runGRPCFactorfight(addr, peerAddr string) {
+func runGRPCServer(addr, peerAddr string) {
 	conn, err := grpc.NewClient(
 		peerAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -181,61 +106,13 @@ func runGRPCFactorfight(addr, peerAddr string) {
 	}
 	defer conn.Close()
 
-	diceClient := protodice.NewRollerServiceClient(conn)
-	ffClient := protofactorfight.NewFactorFightServiceClient(conn)
-
-	peer, err := dice.NewGRPCPeer(diceClient)
+	cfg := server.GRPCServerConfig{
+		Addr: addr,
+	}
+	grpcServer, err := server.NewGRPCServer(cfg)
 	if err != nil {
-		fmt.Printf("[ERROR] Failed to create gRPC peer: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Server initialization failed: %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
-	protodice.RegisterRollerServiceServer(grpcServer, peer)
-
-	f, err := factorfight.NewGRPCPeer(peer, ffClient)
-	protofactorfight.RegisterFactorFightServiceServer(grpcServer, f)
-
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		fmt.Printf("[ERROR] Failed to bind gRPC server: %v\n", err)
-		fmt.Printf("[DEBUG] [ERROR] Failed to bind gRPC server on %s. Error details: %v\n", addr, err)
-		return
-	}
-
-	go func() {
-		if err := grpcServer.Serve(listener); err != nil {
-			fmt.Printf("[ERROR] Failed to serve gRPC: %v\n", err)
-		}
-	}()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-
-	ctx, bigCancel := context.WithCancel(context.Background())
-	defer bigCancel()
-
-	go func() {
-		<-sigCh
-		bigCancel()
-		grpcServer.GracefulStop()
-	}()
-
-	player, err := factorfight.NewPlayer("P1", factorfight.DefaultStrategy, f)
-	if err != nil {
-		fmt.Printf("[ERROR] error creating player: %v\n", err)
-		return
-	}
-
-	ctx, cancel = context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-	_, log, err := player.PlayWithInitiative(ctx, addr == ":50052")
-	if err != nil {
-		fmt.Printf("[ERROR] Player encountered an error during gameplay: %v\n", err)
-		return
-	}
-
-	fmt.Println(log)
+	grpcServer.Run()
 }

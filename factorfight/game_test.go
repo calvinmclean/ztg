@@ -6,6 +6,7 @@ import (
 
 	"ztg/dice"
 	"ztg/factorfight"
+	"ztg/identity"
 )
 
 func TestBumps(t *testing.T) {
@@ -48,8 +49,8 @@ func TestGame(t *testing.T) {
 
 	peer1, peer2 := factorfight.NewChannelPeers(dicePeer1, dicePeer2)
 
-	p1, _ := factorfight.NewPlayer("P1", factorfight.DefaultStrategy, peer2)
-	p2, _ := factorfight.NewPlayer("P2", factorfight.DefaultStrategy, peer1)
+	p1, _ := factorfight.NewSession("", identity.Identity{Name: "P1"}, peer2, factorfight.DefaultStrategy)
+	p2, _ := factorfight.NewSession("", identity.Identity{Name: "P2"}, peer1, factorfight.DefaultStrategy)
 
 	ctx := context.Background()
 
