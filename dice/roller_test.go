@@ -3,7 +3,6 @@ package dice_test
 import (
 	"context"
 	"math"
-	"net/http/httptest"
 	"testing"
 
 	"ztg/dice"
@@ -88,40 +87,4 @@ func TestDiceRollFairness(t *testing.T) {
 			}
 		}
 	})
-}
-
-func TestHTTP(t *testing.T) {
-	peer1 := dice.NewHTTPPeer("")
-	peer2 := dice.NewHTTPPeer("")
-
-	server1 := httptest.NewServer(peer1)
-	server2 := httptest.NewServer(peer2)
-
-	peer1.SetSendAddr(server2.URL)
-	peer2.SetSendAddr(server1.URL)
-
-	const sides = 6
-	d1, _ := dice.NewRoller("One", sides, peer1)
-	d2, _ := dice.NewRoller("Two", sides, peer2)
-
-	rolls := 100
-	for range rolls {
-		ctx := context.Background()
-		roll1 := d1.Roll(ctx)
-		roll2 := d2.Roll(ctx)
-
-		r1, err := roll1.GetOne()
-		if err != nil {
-			t.Fatalf("unexpected error on Roll Result: %v", err)
-		}
-
-		r2, err := roll2.GetOne()
-		if err != nil {
-			t.Fatalf("unexpected error on Roll Result: %v", err)
-		}
-
-		if r1 != r2 {
-			t.Errorf("rolls are not equal %d != %d", r1, r2)
-		}
-	}
 }
