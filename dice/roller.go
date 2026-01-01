@@ -29,7 +29,6 @@ type Peer interface {
 
 // Roller allows rolling a dice with a peer
 type Roller struct {
-	name  string
 	sides uint8
 
 	rollValueLimit uint16
@@ -38,14 +37,13 @@ type Roller struct {
 	peer Peer
 }
 
-// NewRoller creates a Roller with the specified name and number of sides.
-func NewRoller(name string, sides uint8, peer Peer) (Roller, error) {
+// NewRoller creates a Roller with the specified number of sides.
+func NewRoller(sides uint8, peer Peer) (Roller, error) {
 	// this limit can be increased
 	if sides > 20 {
 		return Roller{}, errors.New("max size of die is 20")
 	}
 	return Roller{
-		name:           name,
 		sides:          sides,
 		rollValueLimit: max - (max % uint16(sides)),
 		in:             make(chan [32]byte, 1),

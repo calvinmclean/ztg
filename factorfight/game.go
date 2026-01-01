@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"slices"
 	"ztg/dice"
-	"ztg/identity"
 )
 
 // TODO: implement state validation step? This could be useful for detecting bump errors if one player doesn't move a bump correctly
@@ -16,25 +15,21 @@ const goal = 101
 
 // Session holds the Peer and Roller instances for a game.
 type Session struct {
-	ID       string
-	Self     identity.Identity
 	Peer     Peer
 	Roller   dice.Roller
 	Strategy Strategy
 }
 
-func NewSession(id string, self identity.Identity, peer Peer, strategy Strategy) (Session, error) {
-	roller, err := dice.NewRoller("roller", 10, peer.Dice())
+func NewSession(peer Peer, strategy Strategy) (Session, error) {
+	roller, err := dice.NewRoller(10, peer.Dice())
 	if err != nil {
 		return Session{}, fmt.Errorf("error creating roller: %w", err)
 	}
 
 	return Session{
-		ID:       id,
 		Roller:   roller,
 		Peer:     peer,
 		Strategy: strategy,
-		Self:     self,
 	}, nil
 }
 
@@ -56,7 +51,6 @@ type Peer interface {
 	SendMove(context.Context, Move) error
 	RecvMove(context.Context) (Move, error)
 	Dice() dice.Peer
-	Identity() identity.Identity
 }
 
 // GameLogEntry represents a single move in the game log
@@ -83,7 +77,7 @@ type State struct {
 }
 
 // AddGameLogEntry creates and adds a game log entry
-func (s *State) AddGameLogEntry(playerName string, move Move, turnNum int, isPeer bool, rolls []uint16) {
+func (s *State) AddGameLogEntry(move Move, turnNum int, isPeer bool, rolls []uint16) {
 	var rollsArray [2]uint16
 	if len(rolls) >= 2 {
 		rollsArray = [2]uint16{rolls[0], rolls[1]}
@@ -96,8 +90,13 @@ func (s *State) AddGameLogEntry(playerName string, move Move, turnNum int, isPee
 		newState.Move(move)
 	}
 
+	name := "Self"
+	if isPeer {
+		name = "Peer"
+	}
+
 	logEntry := GameLogEntry{
-		Player:  playerName,
+		Player:  name,
 		Move:    move,
 		TurnNum: turnNum,
 		IsPeer:  isPeer,
@@ -288,7 +287,7 @@ func (s *Session) OtherTurn(ctx context.Context, state *State, turnNum int) erro
 		return err
 	}
 
-	state.AddGameLogEntry(s.Peer.Identity().Name, peerMove, turnNum, true, rolls)
+	state.AddGameLogEntry(peerMove, turnNum, true, rolls)
 	state.PeerMove(peerMove)
 
 	return nil
@@ -311,7 +310,7 @@ func (s *Session) TakeTurn(ctx context.Context, state *State, turnNum int) error
 
 	move := s.Strategy.ChooseMove(ctx, *state, moves)
 	rollsSlice := []uint16{uint16(d1), uint16(d2)}
-	state.AddGameLogEntry(s.Self.Name, move, turnNum, false, rollsSlice)
+	state.AddGameLogEntry(move, turnNum, false, rollsSlice)
 	state.Move(move)
 	// fmt.Printf("%s: %s = %d | %s = %d\n", p.name, move.Pawn1.Expr.String(), move.Pawn1.Result, move.Pawn2.Expr.String(), move.Pawn2.Result)
 

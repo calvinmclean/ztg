@@ -19,17 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	FactorFightService_ReceiveMove_FullMethodName = "/factorfight.FactorFightService/ReceiveMove"
+	FactorFightService_Play_FullMethodName = "/factorfight.FactorFightService/Play"
 )
 
 // FactorFightServiceClient is the client API for FactorFightService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-//
-// Service defining RPCs for FactorFight game interactions.
 type FactorFightServiceClient interface {
-	// SubmitMove allows a player to submit their move.
-	ReceiveMove(ctx context.Context, in *Move, opts ...grpc.CallOption) (*Empty, error)
+	Play(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[FactorFightMessage, FactorFightMessage], error)
 }
 
 type factorFightServiceClient struct {
@@ -40,24 +37,24 @@ func NewFactorFightServiceClient(cc grpc.ClientConnInterface) FactorFightService
 	return &factorFightServiceClient{cc}
 }
 
-func (c *factorFightServiceClient) ReceiveMove(ctx context.Context, in *Move, opts ...grpc.CallOption) (*Empty, error) {
+func (c *factorFightServiceClient) Play(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[FactorFightMessage, FactorFightMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Empty)
-	err := c.cc.Invoke(ctx, FactorFightService_ReceiveMove_FullMethodName, in, out, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &FactorFightService_ServiceDesc.Streams[0], FactorFightService_Play_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &grpc.GenericClientStream[FactorFightMessage, FactorFightMessage]{ClientStream: stream}
+	return x, nil
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type FactorFightService_PlayClient = grpc.BidiStreamingClient[FactorFightMessage, FactorFightMessage]
 
 // FactorFightServiceServer is the server API for FactorFightService service.
 // All implementations must embed UnimplementedFactorFightServiceServer
 // for forward compatibility.
-//
-// Service defining RPCs for FactorFight game interactions.
 type FactorFightServiceServer interface {
-	// SubmitMove allows a player to submit their move.
-	ReceiveMove(context.Context, *Move) (*Empty, error)
+	Play(grpc.BidiStreamingServer[FactorFightMessage, FactorFightMessage]) error
 	mustEmbedUnimplementedFactorFightServiceServer()
 }
 
@@ -68,8 +65,8 @@ type FactorFightServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedFactorFightServiceServer struct{}
 
-func (UnimplementedFactorFightServiceServer) ReceiveMove(context.Context, *Move) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReceiveMove not implemented")
+func (UnimplementedFactorFightServiceServer) Play(grpc.BidiStreamingServer[FactorFightMessage, FactorFightMessage]) error {
+	return status.Errorf(codes.Unimplemented, "method Play not implemented")
 }
 func (UnimplementedFactorFightServiceServer) mustEmbedUnimplementedFactorFightServiceServer() {}
 func (UnimplementedFactorFightServiceServer) testEmbeddedByValue()                            {}
@@ -92,23 +89,12 @@ func RegisterFactorFightServiceServer(s grpc.ServiceRegistrar, srv FactorFightSe
 	s.RegisterService(&FactorFightService_ServiceDesc, srv)
 }
 
-func _FactorFightService_ReceiveMove_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Move)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FactorFightServiceServer).ReceiveMove(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: FactorFightService_ReceiveMove_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FactorFightServiceServer).ReceiveMove(ctx, req.(*Move))
-	}
-	return interceptor(ctx, in, info, handler)
+func _FactorFightService_Play_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(FactorFightServiceServer).Play(&grpc.GenericServerStream[FactorFightMessage, FactorFightMessage]{ServerStream: stream})
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type FactorFightService_PlayServer = grpc.BidiStreamingServer[FactorFightMessage, FactorFightMessage]
 
 // FactorFightService_ServiceDesc is the grpc.ServiceDesc for FactorFightService service.
 // It's only intended for direct use with grpc.RegisterService,
@@ -116,12 +102,14 @@ func _FactorFightService_ReceiveMove_Handler(srv interface{}, ctx context.Contex
 var FactorFightService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "factorfight.FactorFightService",
 	HandlerType: (*FactorFightServiceServer)(nil),
-	Methods: []grpc.MethodDesc{
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
 		{
-			MethodName: "ReceiveMove",
-			Handler:    _FactorFightService_ReceiveMove_Handler,
+			StreamName:    "Play",
+			Handler:       _FactorFightService_Play_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
 	Metadata: "factorfight.proto",
 }

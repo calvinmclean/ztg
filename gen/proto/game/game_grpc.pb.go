@@ -19,8 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	GameService_InitiateGame_FullMethodName = "/game.GameService/InitiateGame"
-	GameService_Challenge_FullMethodName    = "/game.GameService/Challenge"
+	GameService_Challenge_FullMethodName = "/game.GameService/Challenge"
 )
 
 // GameServiceClient is the client API for GameService service.
@@ -29,8 +28,6 @@ const (
 //
 // GameService defines gRPC services for game initiation.
 type GameServiceClient interface {
-	// InitiateGame accepts player details and initiates the chosen game.
-	InitiateGame(ctx context.Context, in *InitiateGameRequest, opts ...grpc.CallOption) (*InitiateGameResponse, error)
 	Challenge(ctx context.Context, in *ChallengeRequest, opts ...grpc.CallOption) (*ChallengeResponse, error)
 }
 
@@ -40,16 +37,6 @@ type gameServiceClient struct {
 
 func NewGameServiceClient(cc grpc.ClientConnInterface) GameServiceClient {
 	return &gameServiceClient{cc}
-}
-
-func (c *gameServiceClient) InitiateGame(ctx context.Context, in *InitiateGameRequest, opts ...grpc.CallOption) (*InitiateGameResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(InitiateGameResponse)
-	err := c.cc.Invoke(ctx, GameService_InitiateGame_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *gameServiceClient) Challenge(ctx context.Context, in *ChallengeRequest, opts ...grpc.CallOption) (*ChallengeResponse, error) {
@@ -68,8 +55,6 @@ func (c *gameServiceClient) Challenge(ctx context.Context, in *ChallengeRequest,
 //
 // GameService defines gRPC services for game initiation.
 type GameServiceServer interface {
-	// InitiateGame accepts player details and initiates the chosen game.
-	InitiateGame(context.Context, *InitiateGameRequest) (*InitiateGameResponse, error)
 	Challenge(context.Context, *ChallengeRequest) (*ChallengeResponse, error)
 	mustEmbedUnimplementedGameServiceServer()
 }
@@ -81,9 +66,6 @@ type GameServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedGameServiceServer struct{}
 
-func (UnimplementedGameServiceServer) InitiateGame(context.Context, *InitiateGameRequest) (*InitiateGameResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method InitiateGame not implemented")
-}
 func (UnimplementedGameServiceServer) Challenge(context.Context, *ChallengeRequest) (*ChallengeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Challenge not implemented")
 }
@@ -106,24 +88,6 @@ func RegisterGameServiceServer(s grpc.ServiceRegistrar, srv GameServiceServer) {
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&GameService_ServiceDesc, srv)
-}
-
-func _GameService_InitiateGame_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InitiateGameRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(GameServiceServer).InitiateGame(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: GameService_InitiateGame_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GameServiceServer).InitiateGame(ctx, req.(*InitiateGameRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _GameService_Challenge_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -151,10 +115,6 @@ var GameService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "game.GameService",
 	HandlerType: (*GameServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "InitiateGame",
-			Handler:    _GameService_InitiateGame_Handler,
-		},
 		{
 			MethodName: "Challenge",
 			Handler:    _GameService_Challenge_Handler,

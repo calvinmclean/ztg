@@ -13,8 +13,8 @@ func TestPipePeer(t *testing.T) {
 
 	peer1, peer2 := dice.NewPipePeers()
 
-	d1, _ := dice.NewRoller("One", sides, peer1)
-	d2, _ := dice.NewRoller("Two", sides, peer2)
+	d1, _ := dice.NewRoller(sides, peer1)
+	d2, _ := dice.NewRoller(sides, peer2)
 
 	ctx := context.Background()
 	roll1 := d1.Roll(ctx)
@@ -46,8 +46,8 @@ func TestDiceRollFairness(t *testing.T) {
 	)
 
 	peer1, peer2 := dice.NewChannelPeers()
-	d1, _ := dice.NewRoller("One", sides, peer1)
-	d2, _ := dice.NewRoller("Two", sides, peer2)
+	d1, _ := dice.NewRoller(sides, peer1)
+	d2, _ := dice.NewRoller(sides, peer2)
 
 	for range rolls {
 		ctx := context.Background()
