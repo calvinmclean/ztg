@@ -6,10 +6,10 @@ option go_package = "ztg/gen/go/dice/v1";
 
 // MessageType represents the type of the message being sent.
 enum MessageType {
-  MSG_TYPE_UNDEFINED = 0;
-  MSG_TYPE_COMMITMENT = 1;
-  MSG_TYPE_SECRET = 2;
-  MSG_TYPE_ROLL_CONFIRMATION = 3;
+  MESSAGE_TYPE_UNSPECIFIED = 0;
+  MESSAGE_TYPE_COMMITMENT = 1;
+  MESSAGE_TYPE_SECRET = 2;
+  MESSAGE_TYPE_ROLL_CONFIRMATION = 3;
 }
 
 // Message represents data exchanged between peers.
