@@ -7,8 +7,8 @@ import (
 	"ztg/dice"
 	"ztg/factorfight"
 
-	factorfightpb "ztg/gen/proto/factorfight"
-	gamepb "ztg/gen/proto/game"
+	factorfightpb "ztg/gen/go/factorfight/v1"
+	gamepb "ztg/gen/go/game/v1"
 
 	"google.golang.org/grpc"
 )

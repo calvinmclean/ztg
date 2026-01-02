@@ -1,24 +1,24 @@
 syntax = "proto3";
 
-package game;
+package game.v1;
 
-option go_package = "ztg/gen/proto/game";
+option go_package = "ztg/gen/go/game/v1";
 
 // A generic empty response message.
 message Empty {}
 
 // ChallengeRequest is used to tell your server to challenge another server
 message ChallengeRequest {
-    string target = 1;
-    string game_name = 2;
+  string target = 1;
+  string game_name = 2;
 }
 
 message ChallengeResponse {
-    optional bool win = 1; // optional to avoid omitempty when false
-    string message = 2;
+  optional bool win = 1; // optional to avoid omitempty when false
+  string message = 2;
 }
 
 // GameService defines gRPC services for game initiation.
 service GameService {
-    rpc Challenge(ChallengeRequest) returns (ChallengeResponse);
+  rpc Challenge(ChallengeRequest) returns (ChallengeResponse);
 }

@@ -7,9 +7,9 @@ import (
 	"net"
 	"strings"
 
-	dicepb "ztg/gen/proto/dice"
-	factorfightpb "ztg/gen/proto/factorfight"
-	gamepb "ztg/gen/proto/game"
+	dicepb "ztg/gen/go/dice/v1"
+	factorfightpb "ztg/gen/go/factorfight/v1"
+	gamepb "ztg/gen/go/game/v1"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

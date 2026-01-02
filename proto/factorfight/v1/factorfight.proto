@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package factorfight.v1;
+
+import "dice/v1/dice.proto";
+
+option go_package = "ztg/gen/go/factorfight/v1";
+
+// Represents a single PawnMove in the FactorFight game.
+message PawnMove {
+  int32 result = 1; // Result of the move
+  int32 bump = 2; // Bump status (encoded as integer)
+  string expr = 3; // Expression for the move (serialized as a string)
+}
+
+// Represents a player's move in the FactorFight game.
+message Move {
+  PawnMove pawn1 = 1; // Pawn1's move
+  PawnMove pawn2 = 2; // Pawn2's move
+}
+
+message FactorFightMessage {
+  oneof message {
+    Move move = 1; // Player's move
+    dice.v1.Message dice_msg = 2; // Dice-related message
+  }
+}
+
+service FactorFightService {
+  rpc Play(stream FactorFightMessage) returns (stream FactorFightMessage);
+}

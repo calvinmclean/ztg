@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package dice;
+package dice.v1;
 
-option go_package = "ztg/gen/proto/dice";
+option go_package = "ztg/gen/go/dice/v1";
 
 // MessageType represents the type of the message being sent.
 enum MessageType {
