@@ -1,0 +1,12 @@
+version: "3"
+
+tasks:
+  factorfight:
+    env:
+      ADDR: ":50052"
+    cmds:
+      - go run main.go
+
+  challenge:
+    cmds:
+      - grpcurl -plaintext -d '{"target":"localhost:50052", "game_name":"factorfight"}' localhost:50053 game.v1.GameService/Challenge

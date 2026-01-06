@@ -13,6 +13,14 @@ import (
 	"google.golang.org/grpc"
 )
 
+type FactorFightConfig struct {
+	// Strategy controls how your implementation will choose which move to make after rolling
+	Strategy factorfight.Strategy
+	// OnGameComplete runs after your server receives a challenge from another player. The most basic/common
+	// use for it would be notifying yourself of win/lose
+	OnGameComplete func(win bool, log factorfight.GameLog)
+}
+
 // convertInternalFactorfightMoveToProto converts factorfight.Move to factorfightpb.Move.
 func convertInternalFactorfightMoveToProto(move factorfight.Move) *factorfightpb.Move {
 	toProtoPawn := func(p factorfight.PawnMove) *factorfightpb.PawnMove {
@@ -89,6 +97,8 @@ func (p factorfightPeer) RecvMove(ctx context.Context) (factorfight.Move, error)
 // factorfightService implements the gRPC server for FactorFight.
 type factorfightService struct {
 	factorfightpb.UnimplementedFactorFightServiceServer
+
+	cfg FactorFightConfig
 }
 
 // StreamGame handles the gRPC streaming communication.
@@ -102,22 +112,29 @@ func (s *factorfightService) Play(stream factorfightpb.FactorFightService_PlaySe
 		dicePeer: dicePeer,
 	}
 
-	session, err := factorfight.NewSession(factorfightPeer, factorfight.DefaultStrategy)
+	strategy := s.cfg.Strategy
+	if s.cfg.Strategy != nil {
+		strategy = factorfight.DefaultStrategy
+	}
+
+	session, err := factorfight.NewSession(factorfightPeer, strategy)
 	if err != nil {
 		return err
 	}
 
-	_, log, err := session.PlayWithInitiative(stream.Context(), true)
+	win, log, err := session.PlayWithInitiative(stream.Context(), true)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(log)
+	if s.cfg.OnGameComplete != nil {
+		s.cfg.OnGameComplete(win, log)
+	}
 
 	return nil
 }
 
-func playFactorFight(ctx context.Context, conn *grpc.ClientConn) (*gamepb.ChallengeResponse, error) {
+func playFactorFight(ctx context.Context, conn *grpc.ClientConn, cfg FactorFightConfig) (*gamepb.ChallengeResponse, error) {
 	ffClient := factorfightpb.NewFactorFightServiceClient(conn)
 	stream, err := ffClient.Play(ctx)
 	if err != nil {
@@ -133,7 +150,12 @@ func playFactorFight(ctx context.Context, conn *grpc.ClientConn) (*gamepb.Challe
 		dicePeer: dicePeer,
 	}
 
-	session, err := factorfight.NewSession(factorfightPeer, factorfight.DefaultStrategy)
+	strategy := cfg.Strategy
+	if cfg.Strategy != nil {
+		strategy = factorfight.DefaultStrategy
+	}
+
+	session, err := factorfight.NewSession(factorfightPeer, strategy)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +165,9 @@ func playFactorFight(ctx context.Context, conn *grpc.ClientConn) (*gamepb.Challe
 		return nil, err
 	}
 
-	fmt.Println(log)
+	if cfg.OnGameComplete != nil {
+		cfg.OnGameComplete(win, log)
+	}
 
 	err = stream.CloseSend()
 	return &gamepb.ChallengeResponse{
