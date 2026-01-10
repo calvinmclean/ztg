@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package factorfight.v1;
 
-import "dice/v1/dice.proto";
-
 option go_package = "ztg/gen/go/factorfight/v1";
 
 // Represents a single PawnMove in the FactorFight game.
@@ -20,10 +18,7 @@ message Move {
 }
 
 message FactorFightMessage {
-  oneof message {
-    Move move = 1; // Player's move
-    dice.v1.Message dice_msg = 2; // Dice-related message
-  }
+  Move move = 1;
 }
 
 service FactorFightService {
