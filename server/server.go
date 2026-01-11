@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	dicepb "ztg/gen/go/dice/v1"
 	factorfightpb "ztg/gen/go/factorfight/v1"
@@ -18,6 +19,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
+)
+
+const (
+	// DefaultVerifierTTL is the default time-to-live for verifier caches
+	DefaultVerifierTTL = 5 * time.Minute
+	// DefaultDieSides is the default number of sides for dice rolling
+	DefaultDieSides = 10
 )
 
 // Server represents a gRPC server instance.

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"time"
 
 	"ztg/dice"
 	"ztg/identity"
@@ -36,17 +35,19 @@ func convertInternalDiceMessageToProto(msg dice.Message) *dicepb.Message {
 	}
 }
 
+type diceStream interface {
+	Recv() (*dicepb.SignedMessage, error)
+	Send(*dicepb.SignedMessage) error
+}
+
 // dicePeer uses the ffStream OR diceStream to implement a dicePeer. This allows it to be used for FactorFight or just a plain dice game
 type dicePeer struct {
 	ffStream factorfightStream
 	// TODO: I might be able to make this more generic and combine the two streams since they
 	// theoretically both use dice.Message proto
-	diceStream interface {
-		Recv() (*dicepb.SignedMessage, error)
-		Send(*dicepb.SignedMessage) error
-	}
-	signer   *Signer
-	verifier *Verifier
+	diceStream diceStream
+	signer     *Signer
+	verifier   *Verifier
 
 	// Hash chain tracking for ordered signatures
 	lastHash []byte
@@ -172,21 +173,11 @@ type diceService struct {
 
 // StreamGame handles the gRPC streaming communication.
 func (s *diceService) Roll(stream dicepb.DiceService_RollServer) error {
-	var signer *Signer
-	var verifier *Verifier
+	signer, verifier := createSignerVerifierPair(s.keyManager, s.serverAddr, s.signedMode)
 
-	if s.signedMode {
-		signer = NewSigner(s.keyManager, s.serverAddr)
-		verifier = NewVerifier(5 * time.Minute)
-	}
+	dicePeer := createDicePeer(stream, signer, verifier)
 
-	dicePeer := &dicePeer{
-		diceStream: stream,
-		signer:     signer,
-		verifier:   verifier,
-	}
-
-	roller, err := dice.NewRoller(10, dicePeer)
+	roller, err := createRoller(dicePeer, DefaultDieSides)
 	if err != nil {
 		return err
 	}
@@ -207,24 +198,11 @@ func playHighRoll(ctx context.Context, conn *grpc.ClientConn, keyManager *identi
 		return nil, err
 	}
 
-	var signer *Signer
-	var verifier *Verifier
+	signer, verifier := createSignerVerifierPair(keyManager, serverAddr, signedMode)
 
-	if signedMode {
-		signer = NewSigner(keyManager, serverAddr)
-		verifier = NewVerifier(5 * time.Minute)
-	}
+	dicePeer := createDicePeer(stream, signer, verifier)
 
-	dicePeer := &dicePeer{
-		diceStream: stream,
-		signer:     signer,
-		verifier:   verifier,
-	}
-
-	// TODO: add configurable die size
-	// TODO: each player rolls a dice and compares to win
-
-	roller, err := dice.NewRoller(10, dicePeer)
+	roller, err := createRoller(dicePeer, DefaultDieSides)
 	if err != nil {
 		return nil, err
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"time"
 
 	"ztg/dice"
 	"ztg/factorfight"
@@ -160,31 +159,13 @@ type factorfightService struct {
 
 // StreamGame handles the gRPC streaming communication.
 func (s *factorfightService) Play(stream factorfightpb.FactorFightService_PlayServer) error {
-	var signer *Signer
-	var verifier *Verifier
+	signer, verifier := createSignerVerifierPair(s.keyManager, s.serverAddr, s.signedMode)
 
-	if s.signedMode {
-		signer = NewSigner(s.keyManager, s.serverAddr)
-		verifier = NewVerifier(5 * time.Minute)
-	}
+	dicePeer := createDicePeerForFactorFight(stream, signer, verifier)
 
-	dicePeer := &dicePeer{
-		ffStream: stream,
-		signer:   signer,
-		verifier: verifier,
-	}
+	factorfightPeer := createFactorfightPeer(stream, dicePeer, signer, verifier)
 
-	factorfightPeer := &factorfightPeer{
-		stream:   stream,
-		dicePeer: dicePeer,
-		signer:   signer,
-		verifier: verifier,
-	}
-
-	strategy := s.cfg.Strategy
-	if s.cfg.Strategy != nil {
-		strategy = factorfight.DefaultStrategy
-	}
+	strategy := resolveStrategy(s.cfg.Strategy)
 
 	session, err := factorfight.NewSession(factorfightPeer, strategy)
 	if err != nil {
@@ -217,33 +198,18 @@ func playFactorFight(ctx context.Context, conn *grpc.ClientConn, cfg FactorFight
 		return nil, fmt.Errorf("failed to get peer identity: %w", err)
 	}
 
-	var signer *Signer
-	var verifier *Verifier
+	signer, verifier := createSignerVerifierPair(keyManager, serverAddr, signedMode)
 
-	if signedMode {
-		signer = NewSigner(keyManager, serverAddr)
-		verifier = NewVerifier(5 * time.Minute)
-		// Cache the peer's public key for signature verification
+	// Cache the peer's public key for signature verification
+	if verifier != nil {
 		verifier.AddPeerIdentity(conn.Target(), peerIdentity.PublicKey)
 	}
 
-	dicePeer := &dicePeer{
-		ffStream: stream,
-		signer:   signer,
-		verifier: verifier,
-	}
+	dicePeer := createDicePeerForFactorFight(stream, signer, verifier)
 
-	factorfightPeer := &factorfightPeer{
-		stream:   stream,
-		dicePeer: dicePeer,
-		signer:   signer,
-		verifier: verifier,
-	}
+	factorfightPeer := createFactorfightPeer(stream, dicePeer, signer, verifier)
 
-	strategy := cfg.Strategy
-	if cfg.Strategy != nil {
-		strategy = factorfight.DefaultStrategy
-	}
+	strategy := resolveStrategy(cfg.Strategy)
 
 	session, err := factorfight.NewSession(factorfightPeer, strategy)
 	if err != nil {
