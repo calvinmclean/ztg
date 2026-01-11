@@ -5,15 +5,19 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"strings"
 
 	dicepb "ztg/gen/go/dice/v1"
 	factorfightpb "ztg/gen/go/factorfight/v1"
 	gamepb "ztg/gen/go/game/v1"
+	identitypb "ztg/gen/go/identity/v1"
+	"ztg/identity"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // Server represents a gRPC server instance.
@@ -26,8 +30,12 @@ type Server struct {
 
 // Config holds configuration for initializing a gRPC server.
 type Config struct {
-	Addr string
+	Addr       string
+	ServerName string
+	OwnerName  string
+	Version    string
 
+	KeyConfig   identity.KeyConfig
 	FactorFight FactorFightConfig
 }
 
@@ -36,6 +44,14 @@ type gameService struct {
 	gamepb.UnimplementedGameServiceServer
 
 	cfg Config
+}
+
+// identityService implements the IdentityService RPC defined in identity.proto.
+type identityService struct {
+	identitypb.UnimplementedIdentityServiceServer
+
+	keyManager *identity.KeyManager
+	config     Config
 }
 
 func (s *gameService) Challenge(ctx context.Context, req *gamepb.ChallengeRequest) (*gamepb.ChallengeResponse, error) {
@@ -57,8 +73,37 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.ChallengeReques
 	}
 }
 
+func (s *identityService) GetIdentity(ctx context.Context, req *emptypb.Empty) (*identitypb.Identity, error) {
+	publicKey := s.keyManager.PublicKey()
+
+	capabilities := []string{
+		"dice.roll",
+		"factorfight.play",
+		"game.challenge",
+	}
+
+	return &identitypb.Identity{
+		PublicKey:     publicKey,
+		ServerAddress: s.config.Addr,
+		ServerName:    s.config.ServerName,
+		OwnerName:     s.config.OwnerName,
+		Version:       s.config.Version,
+		Capabilities:  capabilities,
+		CreatedAt:     0,
+	}, nil
+}
+
 // NewServer initializes a new GRPC server.
 func NewServer(cfg Config) (*Server, error) {
+	keyManager, err := identity.NewKeyManager(cfg.KeyConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize key manager: %w", err)
+	}
+
+	if err := identity.ValidateKeyUsage(keyManager.PublicKey(), os.Getenv("ENV")); err != nil {
+		return nil, err
+	}
+
 	listener, err := net.Listen("tcp", cfg.Addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind gRPC server on %s: %w", cfg.Addr, err)
@@ -68,6 +113,10 @@ func NewServer(cfg Config) (*Server, error) {
 	gamepb.RegisterGameServiceServer(server, &gameService{cfg: cfg})
 	factorfightpb.RegisterFactorFightServiceServer(server, &factorfightService{cfg: cfg.FactorFight})
 	dicepb.RegisterDiceServiceServer(server, &diceService{})
+	identitypb.RegisterIdentityServiceServer(server, &identityService{
+		keyManager: keyManager,
+		config:     cfg,
+	})
 
 	reflection.Register(server)
 

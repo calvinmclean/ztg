@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package dice.v1;
 
+import "identity/v1/identity.proto";
+
 option go_package = "ztg/gen/go/dice/v1";
 
 // MessageType represents the type of the message being sent.
@@ -16,6 +18,11 @@ enum MessageType {
 message Message {
   MessageType msg_type = 1; // Type of the message (e.g., Commitment, Secret, etc.)
   bytes data = 2; // Binary data content (e.g., commitment hash, secret)
+}
+
+message SignedMessage {
+    Message message = 1;
+    identity.v1.Signature signature = 2;
 }
 
 service DiceService {

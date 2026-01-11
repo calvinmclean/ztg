@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package identity.v1;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "ztg/gen/go/identity/v1";
+
+message Identity {
+  bytes public_key = 1;
+  string server_address = 2;
+  string server_name = 3;
+  string owner_name = 4;
+  string version = 5;
+  repeated string capabilities = 6;
+  int64 created_at = 7;
+}
+
+message Signature {
+  bytes signature = 1;
+  string signer_address = 2;
+}
+
+message OrderedSignature {
+  bytes signature = 1;
+  string signer_address = 2;
+  bytes previous_hash = 3;
+  uint64 sequence = 4;
+}
+
+service IdentityService {
+  rpc GetIdentity(google.protobuf.Empty) returns (Identity);
+}
