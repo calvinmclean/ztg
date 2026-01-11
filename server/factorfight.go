@@ -10,8 +10,10 @@ import (
 
 	factorfightpb "ztg/gen/go/factorfight/v1"
 	gamepb "ztg/gen/go/game/v1"
+	identitypb "ztg/gen/go/identity/v1"
 
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type FactorFightConfig struct {
@@ -179,7 +181,16 @@ func playFactorFight(ctx context.Context, conn *grpc.ClientConn, cfg FactorFight
 		return nil, err
 	}
 
+	// Get peer identity for signature verification
+	identityClient := identitypb.NewIdentityServiceClient(conn)
+	peerIdentity, err := identityClient.GetIdentity(ctx, &emptypb.Empty{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get peer identity: %w", err)
+	}
+
 	signedServer := NewSignedServer(keyManager, serverAddr)
+	// Cache the peer's public key for signature verification
+	signedServer.AddPeerIdentity(conn.Target(), peerIdentity.PublicKey)
 	dicePeer := dicePeer{
 		ffStream:     stream,
 		signedServer: signedServer,

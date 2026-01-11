@@ -54,7 +54,7 @@ func (hc *HashChain) VerifyHash(expectedHash []byte, data []byte, sequence uint6
 	hashInput = append(hashInput, data...)
 
 	sequenceBytes := make([]byte, 8)
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		sequenceBytes[i] = byte(sequence >> (i * 8))
 	}
 	hashInput = append(hashInput, sequenceBytes...)

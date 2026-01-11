@@ -34,6 +34,7 @@ func convertInternalDiceMessageToProto(msg dice.Message) *dicepb.Message {
 	}
 }
 
+// dicePeer uses the ffStream OR diceStream to implement a dicePeer. This allows it to be used for FactorFight or just a plain dice game
 type dicePeer struct {
 	ffStream factorfightStream
 	// TODO: I might be able to make this more generic and combine the two streams since they
