@@ -1,0 +1,6 @@
+- Only allow owner to do challenges
+- Allow owner to upload trusted identities
+- Long-term identity store
+- Improve config
+- Finish hash chain verification
+- Look into generalized message signing (requires SetMessage and SetSignature methods on types OR a proto wrapper)

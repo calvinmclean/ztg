@@ -10,16 +10,61 @@ import (
 	identitypb "ztg/gen/go/identity/v1"
 )
 
-func TestSignedServer_VerifyMessageSignature(t *testing.T) {
-	// Create two key managers for testing
-	km1, err := identity.NewKeyManager(identity.KeyConfig{
+func TestSigner_BasicOperations(t *testing.T) {
+	km, err := identity.NewKeyManager(identity.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
 	})
 	if err != nil {
-		t.Fatalf("Failed to create key manager 1: %v", err)
+		t.Fatalf("Failed to create key manager: %v", err)
 	}
 
+	signer := NewSigner(km, "localhost:8080")
+
+	// Test address
+	if signer.Address() != "localhost:8080" {
+		t.Fatalf("Expected address localhost:8080, got %s", signer.Address())
+	}
+
+	// Test message signing
+	message := []byte("test message")
+	signature, err := signer.SignMessage(message)
+	if err != nil {
+		t.Fatalf("Failed to sign message: %v", err)
+	}
+
+	if signature.Signature == nil {
+		t.Fatal("Signature should not be nil")
+	}
+
+	if signature.SignerAddress != "localhost:8080" {
+		t.Fatalf("Expected signer address localhost:8080, got %s", signature.SignerAddress)
+	}
+
+	// Test ordered message signing
+	orderedSig, err := signer.SignOrderedMessage(message, []byte("prev_hash"), 1)
+	if err != nil {
+		t.Fatalf("Failed to sign ordered message: %v", err)
+	}
+
+	if orderedSig.Signature == nil {
+		t.Fatal("Ordered signature should not be nil")
+	}
+
+	if orderedSig.SignerAddress != "localhost:8080" {
+		t.Fatalf("Expected signer address localhost:8080, got %s", orderedSig.SignerAddress)
+	}
+
+	if orderedSig.Sequence != 1 {
+		t.Fatalf("Expected sequence 1, got %d", orderedSig.Sequence)
+	}
+
+	if string(orderedSig.PreviousHash) != "prev_hash" {
+		t.Fatalf("Expected previous hash prev_hash, got %s", string(orderedSig.PreviousHash))
+	}
+}
+
+func TestVerifier_VerifyMessageSignature(t *testing.T) {
 	km2, err := identity.NewKeyManager(identity.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8081",
@@ -28,11 +73,11 @@ func TestSignedServer_VerifyMessageSignature(t *testing.T) {
 		t.Fatalf("Failed to create key manager 2: %v", err)
 	}
 
-	// Create signed server
-	signedServer := NewSignedServer(km1, "localhost:8080")
+	// Create verifier
+	verifier := NewVerifier(5 * time.Minute)
 
 	// Add peer identity to cache
-	signedServer.AddPeerIdentity("localhost:8081", km2.PublicKey())
+	verifier.AddPeerIdentity("localhost:8081", km2.PublicKey())
 
 	// Create a test message
 	message := []byte("test message for signature verification")
@@ -51,20 +96,20 @@ func TestSignedServer_VerifyMessageSignature(t *testing.T) {
 	}
 
 	// Verify the signature - should succeed
-	err = signedServer.verifyMessageSignature(message, sigProto)
+	err = verifier.VerifyMessageSignature(message, sigProto)
 	if err != nil {
 		t.Fatalf("Failed to verify valid signature: %v", err)
 	}
 
 	// Test with wrong message - should fail
 	wrongMessage := []byte("wrong message")
-	err = signedServer.verifyMessageSignature(wrongMessage, sigProto)
+	err = verifier.VerifyMessageSignature(wrongMessage, sigProto)
 	if err == nil {
 		t.Fatal("Should fail verification with wrong message")
 	}
 
 	// Test with nil signature - should fail
-	err = signedServer.verifyMessageSignature(message, nil)
+	err = verifier.VerifyMessageSignature(message, nil)
 	if err == nil {
 		t.Fatal("Should fail verification with nil signature")
 	}
@@ -74,7 +119,7 @@ func TestSignedServer_VerifyMessageSignature(t *testing.T) {
 		Signature:     []byte{},
 		SignerAddress: "localhost:8081",
 	}
-	err = signedServer.verifyMessageSignature(message, emptySig)
+	err = verifier.VerifyMessageSignature(message, emptySig)
 	if err == nil {
 		t.Fatal("Should fail verification with empty signature")
 	}
@@ -84,22 +129,13 @@ func TestSignedServer_VerifyMessageSignature(t *testing.T) {
 		Signature:     signature,
 		SignerAddress: "",
 	}
-	err = signedServer.verifyMessageSignature(message, noAddrSig)
+	err = verifier.VerifyMessageSignature(message, noAddrSig)
 	if err == nil {
 		t.Fatal("Should fail verification with empty signer address")
 	}
 }
 
-func TestSignedServer_VerifyOrderedSignature(t *testing.T) {
-	// Create two key managers for testing
-	km1, err := identity.NewKeyManager(identity.KeyConfig{
-		PrivateKeyPath: "../keys/example_ed25519.pem",
-		ServerAddress:  "localhost:8080",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create key manager 1: %v", err)
-	}
-
+func TestVerifier_VerifyOrderedSignature(t *testing.T) {
 	km2, err := identity.NewKeyManager(identity.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8081",
@@ -108,11 +144,11 @@ func TestSignedServer_VerifyOrderedSignature(t *testing.T) {
 		t.Fatalf("Failed to create key manager 2: %v", err)
 	}
 
-	// Create signed server
-	signedServer := NewSignedServer(km1, "localhost:8080")
+	// Create verifier
+	verifier := NewVerifier(5 * time.Minute)
 
 	// Add peer identity to cache
-	signedServer.AddPeerIdentity("localhost:8081", km2.PublicKey())
+	verifier.AddPeerIdentity("localhost:8081", km2.PublicKey())
 
 	// Create a test message
 	message := []byte("test message for ordered signature verification")
@@ -133,7 +169,7 @@ func TestSignedServer_VerifyOrderedSignature(t *testing.T) {
 	}
 
 	// Verify the ordered signature - should succeed
-	err = signedServer.verifyOrderedSignature(message, orderedSig)
+	err = verifier.VerifyOrderedSignature(message, orderedSig)
 	if err != nil {
 		t.Fatalf("Failed to verify valid ordered signature: %v", err)
 	}
@@ -145,13 +181,13 @@ func TestSignedServer_VerifyOrderedSignature(t *testing.T) {
 		PreviousHash:  []byte("previous_hash"),
 		Sequence:      0,
 	}
-	err = signedServer.verifyOrderedSignature(message, zeroSeqSig)
+	err = verifier.VerifyOrderedSignature(message, zeroSeqSig)
 	if err == nil {
 		t.Fatal("Should fail verification with sequence 0")
 	}
 }
 
-func TestSignedServer_AddPeerIdentity(t *testing.T) {
+func TestVerifier_AddPeerIdentity(t *testing.T) {
 	km, err := identity.NewKeyManager(identity.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
@@ -160,18 +196,18 @@ func TestSignedServer_AddPeerIdentity(t *testing.T) {
 		t.Fatalf("Failed to create key manager: %v", err)
 	}
 
-	signedServer := NewSignedServer(km, "localhost:8080")
+	verifier := NewVerifier(5 * time.Minute)
 
 	// Add peer identity
-	signedServer.AddPeerIdentity("localhost:8081", km.PublicKey())
+	verifier.AddPeerIdentity("localhost:8081", km.PublicKey())
 
 	// Verify the peer identity was added (by checking cache length)
-	if signedServer.GetCacheSize() != 1 {
-		t.Fatalf("Expected 1 identity in cache, got %d", signedServer.GetCacheSize())
+	if verifier.GetCacheSize() != 1 {
+		t.Fatalf("Expected 1 identity in cache, got %d", verifier.GetCacheSize())
 	}
 
 	// Verify the correct public key was stored by attempting to retrieve it
-	cached, exists := signedServer.identityCache.Get("localhost:8081")
+	cached, exists := verifier.identityCache.Get("localhost:8081")
 	if !exists {
 		t.Fatal("Peer identity not found in cache")
 	}
@@ -253,7 +289,7 @@ func TestIdentityCacheManager_Cleanup(t *testing.T) {
 	}
 }
 
-func TestSignedServer_CacheManagement(t *testing.T) {
+func TestVerifier_CacheManagement(t *testing.T) {
 	km, err := identity.NewKeyManager(identity.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
@@ -262,25 +298,25 @@ func TestSignedServer_CacheManagement(t *testing.T) {
 		t.Fatalf("Failed to create key manager: %v", err)
 	}
 
-	signedServer := NewSignedServer(km, "localhost:8080")
+	verifier := NewVerifier(5 * time.Minute)
 
 	// Add multiple peer identities
-	signedServer.AddPeerIdentity("localhost:8081", km.PublicKey())
-	signedServer.AddPeerIdentity("localhost:8082", km.PublicKey())
+	verifier.AddPeerIdentity("localhost:8081", km.PublicKey())
+	verifier.AddPeerIdentity("localhost:8082", km.PublicKey())
 
-	if signedServer.GetCacheSize() != 2 {
-		t.Fatalf("Expected 2 identities in cache, got %d", signedServer.GetCacheSize())
+	if verifier.GetCacheSize() != 2 {
+		t.Fatalf("Expected 2 identities in cache, got %d", verifier.GetCacheSize())
 	}
 
 	// Clear cache
-	signedServer.ClearIdentityCache()
+	verifier.ClearIdentityCache()
 
-	if signedServer.GetCacheSize() != 0 {
-		t.Fatalf("Expected 0 identities in cache after clear, got %d", signedServer.GetCacheSize())
+	if verifier.GetCacheSize() != 0 {
+		t.Fatalf("Expected 0 identities in cache after clear, got %d", verifier.GetCacheSize())
 	}
 }
 
-func TestSignedServer_AddressMismatchSecurity(t *testing.T) {
+func TestVerifier_AddressMismatchSecurity(t *testing.T) {
 	// Create two different key managers
 	km1, err := identity.NewKeyManager(identity.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
@@ -290,18 +326,10 @@ func TestSignedServer_AddressMismatchSecurity(t *testing.T) {
 		t.Fatalf("Failed to create key manager 1: %v", err)
 	}
 
-	// Note: km2 not used in this test but kept for consistency with other tests
-	_, err = identity.NewKeyManager(identity.KeyConfig{
-		PrivateKeyPath: "../keys/example_ed25519.pem",
-		ServerAddress:  "localhost:8082",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create key manager 2: %v", err)
-	}
-
-	signedServer := NewSignedServer(km1, "localhost:8080")
+	verifier := NewVerifier(5 * time.Minute)
 
 	// Create a fake identity that has mismatched address
+
 	fakeIdentity := &identitypb.Identity{
 		PublicKey:     km1.PublicKey(),
 		ServerAddress: "different-address", // Intentionally mismatched
@@ -312,8 +340,8 @@ func TestSignedServer_AddressMismatchSecurity(t *testing.T) {
 		CreatedAt:     0,
 	}
 
-	// Cache the fake identity
-	signedServer.identityCache.Set("localhost:8081", fakeIdentity)
+	// Cache fake identity
+	verifier.identityCache.Set("localhost:8081", fakeIdentity)
 
 	// Create a message signed with km1's private key
 	message := []byte("test message")
@@ -330,7 +358,7 @@ func TestSignedServer_AddressMismatchSecurity(t *testing.T) {
 	}
 
 	// This should fail due to address mismatch in cached identity
-	err = signedServer.verifyMessageSignature(message, sigProto)
+	err = verifier.VerifyMessageSignature(message, sigProto)
 	if err == nil {
 		t.Fatal("Should fail verification due to address mismatch")
 	}
@@ -358,7 +386,7 @@ func TestIdentityCacheManager_GetWithAddressCheck(t *testing.T) {
 		CreatedAt:     0,
 	}
 
-	// Cache the valid identity
+	// Cache valid identity
 	cache.Set("localhost:8081", validIdentity)
 
 	// Should be found with address check
@@ -381,7 +409,7 @@ func TestIdentityCacheManager_GetWithAddressCheck(t *testing.T) {
 		CreatedAt:     0,
 	}
 
-	// Cache the mismatched identity
+	// Cache mismatched identity
 	cache.Set("localhost:8082", mismatchedIdentity)
 
 	// Should NOT be found due to address mismatch
@@ -390,8 +418,55 @@ func TestIdentityCacheManager_GetWithAddressCheck(t *testing.T) {
 		t.Fatal("Mismatched identity should not be found with address check")
 	}
 
-	// Verify the mismatched entry was removed from cache
+	// Verify mismatched entry was removed from cache
 	if cache.Size() != 1 {
 		t.Fatalf("Expected 1 identity after address mismatch cleanup, got %d", cache.Size())
+	}
+}
+
+func TestSigner_Verifier_Integration(t *testing.T) {
+	km, err := identity.NewKeyManager(identity.KeyConfig{
+		PrivateKeyPath: "../keys/example_ed25519.pem",
+		ServerAddress:  "localhost:8080",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create key manager: %v", err)
+	}
+
+	// Test getting separate components
+	signer := NewSigner(km, "localhost:8080")
+	if signer.Address() != "localhost:8080" {
+		t.Fatalf("Signer address should match server address")
+	}
+
+	verifier := NewVerifier(5 * time.Minute)
+	if verifier.GetCacheSize() != 0 {
+		t.Fatalf("New verifier should have empty cache")
+	}
+
+	// Test that components work independently
+	message := []byte("test message")
+	signature, err := signer.SignMessage(message)
+	if err != nil {
+		t.Fatalf("Failed to sign with component signer: %v", err)
+	}
+
+	// Manually add the identity to verifier for testing
+	verifier.AddPeerIdentity("localhost:8080", km.PublicKey())
+
+	// Verify signature with component verifier
+	err = verifier.VerifyMessageSignature(message, signature)
+	if err != nil {
+		t.Fatalf("Failed to verify with component verifier: %v", err)
+	}
+
+	// Verify that cache operations work
+	if verifier.GetCacheSize() != 1 {
+		t.Fatalf("Expected 1 entry in verifier cache")
+	}
+
+	verifier.ClearIdentityCache()
+	if verifier.GetCacheSize() != 0 {
+		t.Fatalf("Expected empty cache after clear")
 	}
 }

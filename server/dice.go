@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"ztg/dice"
 	"ztg/identity"
@@ -43,7 +44,8 @@ type dicePeer struct {
 		Recv() (*dicepb.SignedMessage, error)
 		Send(*dicepb.SignedMessage) error
 	}
-	signedServer *SignedServer
+	signer   *Signer
+	verifier *Verifier
 }
 
 var _ dice.Peer = dicePeer{}
@@ -56,9 +58,9 @@ func (p dicePeer) Send(ctx context.Context, msg dice.Message) error {
 			Message: protoMsg,
 		}
 
-		if p.signedServer != nil {
+		if p.signer != nil {
 			var err error
-			signedMsg, err = p.signedServer.createSignedDiceMessage(protoMsg)
+			signedMsg, err = createSignedDiceMessage(p.signer, protoMsg)
 			if err != nil {
 				return err
 			}
@@ -75,9 +77,9 @@ func (p dicePeer) Send(ctx context.Context, msg dice.Message) error {
 		Message: ffMsg,
 	}
 
-	if p.signedServer != nil {
+	if p.signer != nil {
 		var err error
-		signedFFMsg, err = p.signedServer.createSignedFactorFightMessage(ffMsg, nil, 1)
+		signedFFMsg, err = createSignedFactorFightMessage(p.signer, ffMsg, nil, 1)
 		if err != nil {
 			return err
 		}
@@ -94,18 +96,18 @@ func (p dicePeer) Recv(ctx context.Context) (dice.Message, error) {
 			return dice.Message{}, err
 		}
 
-		// Verify signature if signedServer exists
-		if p.signedServer != nil {
+		// Verify signature if verifier exists
+		if p.verifier != nil {
 			if msg.Signature == nil {
-				return dice.Message{}, fmt.Errorf("message is not signed but signedServer is configured")
+				return dice.Message{}, fmt.Errorf("message is not signed but verifier is configured")
 			}
 
-			msgBytes, err := p.signedServer.serializeMessage(msg.Message)
+			msgBytes, err := serializeMessage(msg.Message)
 			if err != nil {
 				return dice.Message{}, fmt.Errorf("failed to serialize message: %w", err)
 			}
 
-			if err := p.signedServer.verifyMessageSignature(msgBytes, msg.Signature); err != nil {
+			if err := p.verifier.VerifyMessageSignature(msgBytes, msg.Signature); err != nil {
 				return dice.Message{}, fmt.Errorf("signature verification failed: %w", err)
 			}
 		}
@@ -119,17 +121,17 @@ func (p dicePeer) Recv(ctx context.Context) (dice.Message, error) {
 	}
 
 	// Verify signature if signedServer exists
-	if p.signedServer != nil {
+	if p.verifier != nil {
 		if msg.Signature == nil {
-			return dice.Message{}, fmt.Errorf("message is not signed but signedServer is configured")
+			return dice.Message{}, fmt.Errorf("message is not signed but verifier is configured")
 		}
 
-		msgBytes, err := p.signedServer.serializeMessage(msg.Message)
+		msgBytes, err := serializeMessage(msg.Message)
 		if err != nil {
 			return dice.Message{}, fmt.Errorf("failed to serialize message: %w", err)
 		}
 
-		if err := p.signedServer.verifyOrderedSignature(msgBytes, msg.Signature); err != nil {
+		if err := p.verifier.VerifyOrderedSignature(msgBytes, msg.Signature); err != nil {
 			return dice.Message{}, fmt.Errorf("signature verification failed: %w", err)
 		}
 	}
@@ -152,10 +154,12 @@ type diceService struct {
 
 // StreamGame handles the gRPC streaming communication.
 func (s *diceService) Roll(stream dicepb.DiceService_RollServer) error {
-	signedServer := NewSignedServer(s.keyManager, s.serverAddr)
+	signer := NewSigner(s.keyManager, s.serverAddr)
+	verifier := NewVerifier(5 * time.Minute)
 	dicePeer := dicePeer{
-		diceStream:   stream,
-		signedServer: signedServer,
+		diceStream: stream,
+		signer:     signer,
+		verifier:   verifier,
 	}
 
 	roller, err := dice.NewRoller(10, dicePeer)
@@ -179,10 +183,12 @@ func playHighRoll(ctx context.Context, conn *grpc.ClientConn, keyManager *identi
 		return nil, err
 	}
 
-	signedServer := NewSignedServer(keyManager, serverAddr)
+	signer := NewSigner(keyManager, serverAddr)
+	verifier := NewVerifier(5 * time.Minute)
 	dicePeer := dicePeer{
-		diceStream:   stream,
-		signedServer: signedServer,
+		diceStream: stream,
+		signer:     signer,
+		verifier:   verifier,
 	}
 
 	// TODO: add configurable die size

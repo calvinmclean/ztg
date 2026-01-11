@@ -8,14 +8,10 @@ import (
 	"sync"
 	"time"
 
-	dicepb "ztg/gen/go/dice/v1"
-	factorfightpb "ztg/gen/go/factorfight/v1"
 	identitypb "ztg/gen/go/identity/v1"
-	"ztg/identity"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -138,63 +134,20 @@ func (cm *IdentityCacheManager) Cleanup() {
 	}
 }
 
-type SignedServer struct {
-	keyManager    *identity.KeyManager
-	signer        *identity.Signer
+// Verifier handles signature verification and identity management
+type Verifier struct {
 	identityCache *IdentityCacheManager
 }
 
-func NewSignedServer(keyManager *identity.KeyManager, serverAddr string) *SignedServer {
-	return &SignedServer{
-		keyManager:    keyManager,
-		signer:        identity.NewSigner(keyManager.PrivateKey(), serverAddr),
-		identityCache: NewIdentityCacheManager(5 * time.Minute), // 5 minute TTL
+// NewVerifier creates a new Verifier instance
+func NewVerifier(ttl time.Duration) *Verifier {
+	return &Verifier{
+		identityCache: NewIdentityCacheManager(ttl),
 	}
 }
 
-func (s *SignedServer) AddPeerIdentity(peerAddr string, publicKey ed25519.PublicKey) {
-	s.identityCache.SetPublicKey(peerAddr, publicKey)
-}
-
-// ClearIdentityCache clears all cached identities
-func (s *SignedServer) ClearIdentityCache() {
-	s.identityCache.Clear()
-}
-
-// CleanupIdentityCache removes expired entries from the cache
-func (s *SignedServer) CleanupIdentityCache() {
-	s.identityCache.Cleanup()
-}
-
-// GetCacheSize returns the number of cached identities
-func (s *SignedServer) GetCacheSize() int {
-	return s.identityCache.Size()
-}
-
-func (s *SignedServer) getPeerIdentity(peerAddr string) (*identitypb.Identity, error) {
-	cached, exists := s.identityCache.Get(peerAddr)
-	if exists && cached.Identity != nil {
-		return cached.Identity, nil
-	}
-
-	conn, err := grpc.NewClient(peerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to peer %s: %w", peerAddr, err)
-	}
-	defer conn.Close()
-
-	identityClient := identitypb.NewIdentityServiceClient(conn)
-	identity, err := identityClient.GetIdentity(context.Background(), &emptypb.Empty{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get identity from peer %s: %w", peerAddr, err)
-	}
-
-	s.identityCache.Set(peerAddr, identity)
-
-	return identity, nil
-}
-
-func (s *SignedServer) verifyMessageSignature(message []byte, signature *identitypb.Signature) error {
+// VerifyMessageSignature verifies a message signature
+func (v *Verifier) VerifyMessageSignature(message []byte, signature *identitypb.Signature) error {
 	if signature == nil {
 		return fmt.Errorf("message is not signed")
 	}
@@ -208,7 +161,7 @@ func (s *SignedServer) verifyMessageSignature(message []byte, signature *identit
 	}
 
 	// Check cache first with address verification
-	cached, exists := s.identityCache.GetWithAddressCheck(signature.SignerAddress)
+	cached, exists := v.identityCache.GetWithAddressCheck(signature.SignerAddress)
 	if exists {
 		// SECURITY: Verify signature with cached public key
 		hash := sha256.Sum256(message)
@@ -219,12 +172,12 @@ func (s *SignedServer) verifyMessageSignature(message []byte, signature *identit
 	}
 
 	// Not cached: fetch fresh identity and verify
-	peerIdentity, err := s.getPeerIdentity(signature.SignerAddress)
+	peerIdentity, err := v.getPeerIdentity(signature.SignerAddress)
 	if err != nil {
 		return fmt.Errorf("failed to fetch peer identity: %w", err)
 	}
 
-	// SECURITY: Verify the fetched identity's address matches the claimed address
+	// SECURITY: Verify fetched identity's address matches the claimed address
 	if peerIdentity.ServerAddress != signature.SignerAddress {
 		return fmt.Errorf("address mismatch: identity reports %s, signature claims %s",
 			peerIdentity.ServerAddress, signature.SignerAddress)
@@ -237,11 +190,12 @@ func (s *SignedServer) verifyMessageSignature(message []byte, signature *identit
 	}
 
 	// Cache ONLY after successful verification
-	s.identityCache.Set(signature.SignerAddress, peerIdentity)
+	v.identityCache.Set(signature.SignerAddress, peerIdentity)
 	return nil
 }
 
-func (s *SignedServer) verifyOrderedSignature(message []byte, signature *identitypb.OrderedSignature) error {
+// VerifyOrderedSignature verifies an ordered signature
+func (v *Verifier) VerifyOrderedSignature(message []byte, signature *identitypb.OrderedSignature) error {
 	if signature == nil {
 		return fmt.Errorf("message is not signed")
 	}
@@ -259,7 +213,7 @@ func (s *SignedServer) verifyOrderedSignature(message []byte, signature *identit
 	}
 
 	// Check cache first with address verification
-	cached, exists := s.identityCache.GetWithAddressCheck(signature.SignerAddress)
+	cached, exists := v.identityCache.GetWithAddressCheck(signature.SignerAddress)
 	if exists {
 		// SECURITY: Verify signature with cached public key
 		hash := sha256.Sum256(message)
@@ -273,12 +227,12 @@ func (s *SignedServer) verifyOrderedSignature(message []byte, signature *identit
 	}
 
 	// Not cached: fetch fresh identity and verify
-	peerIdentity, err := s.getPeerIdentity(signature.SignerAddress)
+	peerIdentity, err := v.getPeerIdentity(signature.SignerAddress)
 	if err != nil {
 		return fmt.Errorf("failed to fetch peer identity: %w", err)
 	}
 
-	// SECURITY: Verify the fetched identity's address matches the claimed address
+	// SECURITY: Verify fetched identity's address matches the claimed address
 	if peerIdentity.ServerAddress != signature.SignerAddress {
 		return fmt.Errorf("address mismatch in ordered signature: identity reports %s, signature claims %s",
 			peerIdentity.ServerAddress, signature.SignerAddress)
@@ -291,7 +245,7 @@ func (s *SignedServer) verifyOrderedSignature(message []byte, signature *identit
 	}
 
 	// Cache ONLY after successful verification
-	s.identityCache.Set(signature.SignerAddress, peerIdentity)
+	v.identityCache.Set(signature.SignerAddress, peerIdentity)
 
 	// TODO: implement hash chain verification for PreviousHash
 	// For now, we'll just accept any previous hash
@@ -299,63 +253,40 @@ func (s *SignedServer) verifyOrderedSignature(message []byte, signature *identit
 	return nil
 }
 
-func (s *SignedServer) signMessage(message []byte) *identitypb.Signature {
-	signature, err := s.signer.Sign(message)
+// getPeerIdentity fetches peer identity from their gRPC service
+func (v *Verifier) getPeerIdentity(peerAddr string) (*identitypb.Identity, error) {
+	// Connect to peer's identity service
+	conn, err := grpc.NewClient(peerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("failed to connect to peer %s: %w", peerAddr, err)
+	}
+	defer conn.Close()
+
+	identityClient := identitypb.NewIdentityServiceClient(conn)
+	identity, err := identityClient.GetIdentity(context.Background(), &emptypb.Empty{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get identity from peer %s: %w", peerAddr, err)
 	}
 
-	return &identitypb.Signature{
-		Signature:     signature,
-		SignerAddress: s.signer.Address(),
-	}
+	return identity, nil
 }
 
-func (s *SignedServer) signOrderedMessage(message []byte, previousHash []byte, sequence uint64) *identitypb.OrderedSignature {
-	hashChain := &identity.HashChain{}
-	hashChain.NextHash(message)
-
-	signature, err := s.signer.Sign(message)
-	if err != nil {
-		return nil
-	}
-
-	return &identitypb.OrderedSignature{
-		Signature:     signature,
-		SignerAddress: s.signer.Address(),
-		PreviousHash:  previousHash,
-		Sequence:      sequence,
-	}
+// AddPeerIdentity adds a peer identity to the verifier's cache
+func (v *Verifier) AddPeerIdentity(peerAddr string, publicKey ed25519.PublicKey) {
+	v.identityCache.SetPublicKey(peerAddr, publicKey)
 }
 
-func (s *SignedServer) serializeMessage(msg proto.Message) ([]byte, error) {
-	return proto.Marshal(msg)
+// ClearIdentityCache clears all cached identities
+func (v *Verifier) ClearIdentityCache() {
+	v.identityCache.Clear()
 }
 
-func (s *SignedServer) createSignedDiceMessage(msg *dicepb.Message) (*dicepb.SignedMessage, error) {
-	messageBytes, err := s.serializeMessage(msg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize message: %w", err)
-	}
-
-	signature := s.signMessage(messageBytes)
-
-	return &dicepb.SignedMessage{
-		Message:   msg,
-		Signature: signature,
-	}, nil
+// CleanupIdentityCache removes expired entries from the cache
+func (v *Verifier) CleanupIdentityCache() {
+	v.identityCache.Cleanup()
 }
 
-func (s *SignedServer) createSignedFactorFightMessage(msg *factorfightpb.FactorFightMessage, previousHash []byte, sequence uint64) (*factorfightpb.SignedFactorFightMessage, error) {
-	messageBytes, err := s.serializeMessage(msg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize message: %w", err)
-	}
-
-	signature := s.signOrderedMessage(messageBytes, previousHash, sequence)
-
-	return &factorfightpb.SignedFactorFightMessage{
-		Message:   msg,
-		Signature: signature,
-	}, nil
+// GetCacheSize returns the number of cached identities
+func (v *Verifier) GetCacheSize() int {
+	return v.identityCache.Size()
 }

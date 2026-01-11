@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"ztg/dice"
 	"ztg/factorfight"
@@ -58,9 +59,10 @@ func convertfactorfightpbMoveToInternal(move *factorfightpb.Move) factorfight.Mo
 
 // factorfightPeer implements the Peer interface for use with streaming.
 type factorfightPeer struct {
-	stream       factorfightStream
-	dicePeer     dicePeer
-	signedServer *SignedServer
+	stream   factorfightStream
+	dicePeer dicePeer
+	signer   *Signer
+	verifier *Verifier
 }
 
 var _ factorfight.Peer = factorfightPeer{}
@@ -81,9 +83,9 @@ func (p factorfightPeer) SendMove(ctx context.Context, move factorfight.Move) er
 		Message: ffMsg,
 	}
 
-	if p.signedServer != nil {
+	if p.signer != nil {
 		var err error
-		signedMsg, err = p.signedServer.createSignedFactorFightMessage(ffMsg, nil, 1)
+		signedMsg, err = createSignedFactorFightMessage(p.signer, ffMsg, nil, 1)
 		if err != nil {
 			return err
 		}
@@ -104,18 +106,18 @@ func (p factorfightPeer) RecvMove(ctx context.Context) (factorfight.Move, error)
 		return factorfight.Move{}, err
 	}
 
-	// Verify signature if signedServer exists
-	if p.signedServer != nil {
+	// Verify signature if verifier exists
+	if p.verifier != nil {
 		if msg.Signature == nil {
-			return factorfight.Move{}, fmt.Errorf("message is not signed but signedServer is configured")
+			return factorfight.Move{}, fmt.Errorf("message is not signed but verifier is configured")
 		}
 
-		msgBytes, err := p.signedServer.serializeMessage(msg.Message)
+		msgBytes, err := serializeMessage(msg.Message)
 		if err != nil {
 			return factorfight.Move{}, fmt.Errorf("failed to serialize message: %w", err)
 		}
 
-		if err := p.signedServer.verifyOrderedSignature(msgBytes, msg.Signature); err != nil {
+		if err := p.verifier.VerifyOrderedSignature(msgBytes, msg.Signature); err != nil {
 			return factorfight.Move{}, fmt.Errorf("signature verification failed: %w", err)
 		}
 	}
@@ -140,16 +142,20 @@ type factorfightService struct {
 
 // StreamGame handles the gRPC streaming communication.
 func (s *factorfightService) Play(stream factorfightpb.FactorFightService_PlayServer) error {
-	signedServer := NewSignedServer(s.keyManager, s.serverAddr)
+	signer := NewSigner(s.keyManager, s.serverAddr)
+	verifier := NewVerifier(5 * time.Minute)
+
 	dicePeer := dicePeer{
-		ffStream:     stream,
-		signedServer: signedServer,
+		ffStream: stream,
+		signer:   signer,
+		verifier: verifier,
 	}
 
 	factorfightPeer := factorfightPeer{
-		stream:       stream,
-		dicePeer:     dicePeer,
-		signedServer: signedServer,
+		stream:   stream,
+		dicePeer: dicePeer,
+		signer:   signer,
+		verifier: verifier,
 	}
 
 	strategy := s.cfg.Strategy
@@ -188,18 +194,21 @@ func playFactorFight(ctx context.Context, conn *grpc.ClientConn, cfg FactorFight
 		return nil, fmt.Errorf("failed to get peer identity: %w", err)
 	}
 
-	signedServer := NewSignedServer(keyManager, serverAddr)
+	signer := NewSigner(keyManager, serverAddr)
+	verifier := NewVerifier(5 * time.Minute)
 	// Cache the peer's public key for signature verification
-	signedServer.AddPeerIdentity(conn.Target(), peerIdentity.PublicKey)
+	verifier.AddPeerIdentity(conn.Target(), peerIdentity.PublicKey)
 	dicePeer := dicePeer{
-		ffStream:     stream,
-		signedServer: signedServer,
+		ffStream: stream,
+		signer:   signer,
+		verifier: verifier,
 	}
 
 	factorfightPeer := factorfightPeer{
-		stream:       stream,
-		dicePeer:     dicePeer,
-		signedServer: signedServer,
+		stream:   stream,
+		dicePeer: dicePeer,
+		signer:   signer,
+		verifier: verifier,
 	}
 
 	strategy := cfg.Strategy
