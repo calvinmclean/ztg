@@ -2,14 +2,12 @@ package server
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 
 	"ztg/dice"
 	"ztg/identity"
 
 	dicepb "ztg/gen/go/dice/v1"
-	factorfightpb "ztg/gen/go/factorfight/v1"
 	gamepb "ztg/gen/go/game/v1"
 
 	"google.golang.org/grpc"
@@ -42,9 +40,6 @@ type diceStream interface {
 
 // dicePeer uses the ffStream OR diceStream to implement a dicePeer. This allows it to be used for FactorFight or just a plain dice game
 type dicePeer struct {
-	ffStream factorfightStream
-	// TODO: I might be able to make this more generic and combine the two streams since they
-	// theoretically both use dice.Message proto
 	diceStream diceStream
 	signer     *Signer
 	verifier   *Verifier
@@ -58,88 +53,31 @@ var _ dice.Peer = (*dicePeer)(nil)
 
 // Send sends a message to the stream.
 func (p *dicePeer) Send(ctx context.Context, msg dice.Message) error {
-	if p.diceStream != nil {
-		protoMsg := convertInternalDiceMessageToProto(msg)
-		signedMsg := &dicepb.SignedMessage{
-			Message: protoMsg,
-		}
-
-		if p.signer != nil {
-			var err error
-			signedMsg, err = createSignedMessage(&dicepb.SignedMessage{}, p.signer, protoMsg)
-			if err != nil {
-				return err
-			}
-		}
-
-		return p.diceStream.Send(signedMsg)
-	}
-
 	protoMsg := convertInternalDiceMessageToProto(msg)
-	ffMsg := &factorfightpb.FactorFightMessage{
-		Message: &factorfightpb.FactorFightMessage_DiceMsg{DiceMsg: protoMsg},
-	}
-	signedFFMsg := &factorfightpb.SignedFactorFightMessage{
-		Message: ffMsg,
+	signedMsg := &dicepb.SignedMessage{
+		Message: protoMsg,
 	}
 
 	if p.signer != nil {
-		// Calculate hash of this message for hash chain
-		msgBytes, err := serializeMessage(ffMsg)
-		if err != nil {
-			return fmt.Errorf("failed to serialize message for hash chain: %w", err)
-		}
-
-		hash := sha256.Sum256(msgBytes)
-
-		// Increment sequence for ordered signature
-		p.sequence++
-
-		signedFFMsg, err = createSignedOrderedMessage(&factorfightpb.SignedFactorFightMessage{}, p.signer, ffMsg, p.lastHash, p.sequence)
+		var err error
+		signedMsg, err = createSignedMessage(&dicepb.SignedMessage{}, p.signer, protoMsg)
 		if err != nil {
 			return err
 		}
-
-		// Update last hash for next message
-		p.lastHash = hash[:]
 	}
 
-	return p.ffStream.Send(signedFFMsg)
+	return p.diceStream.Send(signedMsg)
 }
 
 // Recv receives a message from the stream.
 func (p *dicePeer) Recv(ctx context.Context) (dice.Message, error) {
-	if p.diceStream != nil {
-		msg, err := p.diceStream.Recv()
-		if err != nil {
-			return dice.Message{}, err
-		}
-
-		// Verify signature if verifier exists
-		if p.verifier != nil {
-			if msg.Signature == nil {
-				return dice.Message{}, fmt.Errorf("message is not signed but verifier is configured")
-			}
-
-			msgBytes, err := serializeMessage(msg.Message)
-			if err != nil {
-				return dice.Message{}, fmt.Errorf("failed to serialize message: %w", err)
-			}
-
-			if err := p.verifier.VerifyMessageSignature(msgBytes, msg.Signature); err != nil {
-				return dice.Message{}, fmt.Errorf("signature verification failed: %w", err)
-			}
-		}
-
-		return convertdicepbMessageToInternal(msg.Message), nil
-	}
-
-	msg, err := p.ffStream.Recv()
+	msg, err := p.diceStream.Recv()
 	if err != nil {
 		return dice.Message{}, err
 	}
 
-	// Verify signature if signedServer exists
+	// Verify signature if verifier exists
+	// TODO: update to use a nil/mock verifier and abstract this
 	if p.verifier != nil {
 		if msg.Signature == nil {
 			return dice.Message{}, fmt.Errorf("message is not signed but verifier is configured")
@@ -150,17 +88,12 @@ func (p *dicePeer) Recv(ctx context.Context) (dice.Message, error) {
 			return dice.Message{}, fmt.Errorf("failed to serialize message: %w", err)
 		}
 
-		if err := p.verifier.VerifyOrderedSignature(msgBytes, msg.Signature); err != nil {
+		if err := p.verifier.VerifyMessageSignature(msgBytes, msg.Signature); err != nil {
 			return dice.Message{}, fmt.Errorf("signature verification failed: %w", err)
 		}
 	}
 
-	switch m := msg.Message.Message.(type) {
-	case *factorfightpb.FactorFightMessage_DiceMsg:
-		return convertdicepbMessageToInternal(m.DiceMsg), nil
-	default:
-		return dice.Message{}, fmt.Errorf("expected dice message, got different type")
-	}
+	return convertdicepbMessageToInternal(msg.Message), nil
 }
 
 // diceService implements the gRPC server for Dice.

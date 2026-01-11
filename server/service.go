@@ -23,20 +23,10 @@ func createDicePeer(diceStream diceStream, signer *Signer, verifier *Verifier) *
 	}
 }
 
-// createDicePeerForFactorFight creates a dicePeer specifically for FactorFight games
-func createDicePeerForFactorFight(ffStream factorfightStream, signer *Signer, verifier *Verifier) *dicePeer {
-	return &dicePeer{
-		ffStream: ffStream,
-		signer:   signer,
-		verifier: verifier,
-	}
-}
-
 // createFactorfightPeer creates a factorfightPeer with the specified parameters
-func createFactorfightPeer(stream factorfightStream, dicePeer *dicePeer, signer *Signer, verifier *Verifier) *factorfightPeer {
+func createFactorfightPeer(stream factorfightStream, signer *Signer, verifier *Verifier) *factorfightPeer {
 	return &factorfightPeer{
 		stream:   stream,
-		dicePeer: dicePeer,
 		signer:   signer,
 		verifier: verifier,
 	}

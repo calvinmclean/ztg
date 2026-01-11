@@ -60,7 +60,6 @@ func convertfactorfightpbMoveToInternal(move *factorfightpb.Move) factorfight.Mo
 // factorfightPeer implements the Peer interface for use with streaming.
 type factorfightPeer struct {
 	stream   factorfightStream
-	dicePeer *dicePeer
 	signer   *Signer
 	verifier *Verifier
 
@@ -71,10 +70,9 @@ type factorfightPeer struct {
 
 var _ factorfight.Peer = (*factorfightPeer)(nil)
 
-// Dice returns nil as this peer does not use dice.Peer for game communication.
 func (p *factorfightPeer) Dice() dice.Peer {
-	// Note: Update if dice.Peer is required for streaming.
-	return p.dicePeer
+	// factorfightPeer also implements dice.Peer
+	return p
 }
 
 // SendMove sends a move to the stream.
@@ -161,9 +159,7 @@ type factorfightService struct {
 func (s *factorfightService) Play(stream factorfightpb.FactorFightService_PlayServer) error {
 	signer, verifier := createSignerVerifierPair(s.keyManager, s.serverAddr, s.signedMode)
 
-	dicePeer := createDicePeerForFactorFight(stream, signer, verifier)
-
-	factorfightPeer := createFactorfightPeer(stream, dicePeer, signer, verifier)
+	factorfightPeer := createFactorfightPeer(stream, signer, verifier)
 
 	strategy := resolveStrategy(s.cfg.Strategy)
 
@@ -205,9 +201,7 @@ func playFactorFight(ctx context.Context, conn *grpc.ClientConn, cfg FactorFight
 		verifier.AddPeerIdentity(conn.Target(), peerIdentity.PublicKey)
 	}
 
-	dicePeer := createDicePeerForFactorFight(stream, signer, verifier)
-
-	factorfightPeer := createFactorfightPeer(stream, dicePeer, signer, verifier)
+	factorfightPeer := createFactorfightPeer(stream, signer, verifier)
 
 	strategy := resolveStrategy(cfg.Strategy)
 
@@ -229,4 +223,69 @@ func playFactorFight(ctx context.Context, conn *grpc.ClientConn, cfg FactorFight
 	return &gamepb.ChallengeResponse{
 		Win: &win,
 	}, err
+}
+
+// Send sends a message to the stream.
+func (p *factorfightPeer) Send(ctx context.Context, msg dice.Message) error {
+	protoMsg := convertInternalDiceMessageToProto(msg)
+	ffMsg := &factorfightpb.FactorFightMessage{
+		Message: &factorfightpb.FactorFightMessage_DiceMsg{DiceMsg: protoMsg},
+	}
+	signedFFMsg := &factorfightpb.SignedFactorFightMessage{
+		Message: ffMsg,
+	}
+
+	if p.signer != nil {
+		// Calculate hash of this message for hash chain
+		msgBytes, err := serializeMessage(ffMsg)
+		if err != nil {
+			return fmt.Errorf("failed to serialize message for hash chain: %w", err)
+		}
+
+		hash := sha256.Sum256(msgBytes)
+
+		// Increment sequence for ordered signature
+		p.sequence++
+
+		signedFFMsg, err = createSignedOrderedMessage(&factorfightpb.SignedFactorFightMessage{}, p.signer, ffMsg, p.lastHash, p.sequence)
+		if err != nil {
+			return err
+		}
+
+		// Update last hash for next message
+		p.lastHash = hash[:]
+	}
+
+	return p.stream.Send(signedFFMsg)
+}
+
+// Recv receives a message from the stream.
+func (p *factorfightPeer) Recv(ctx context.Context) (dice.Message, error) {
+	msg, err := p.stream.Recv()
+	if err != nil {
+		return dice.Message{}, err
+	}
+
+	// Verify signature if signedServer exists
+	if p.verifier != nil {
+		if msg.Signature == nil {
+			return dice.Message{}, fmt.Errorf("message is not signed but verifier is configured")
+		}
+
+		msgBytes, err := serializeMessage(msg.Message)
+		if err != nil {
+			return dice.Message{}, fmt.Errorf("failed to serialize message: %w", err)
+		}
+
+		if err := p.verifier.VerifyOrderedSignature(msgBytes, msg.Signature); err != nil {
+			return dice.Message{}, fmt.Errorf("signature verification failed: %w", err)
+		}
+	}
+
+	switch m := msg.Message.Message.(type) {
+	case *factorfightpb.FactorFightMessage_DiceMsg:
+		return convertdicepbMessageToInternal(m.DiceMsg), nil
+	default:
+		return dice.Message{}, fmt.Errorf("expected dice message, got different type")
+	}
 }
