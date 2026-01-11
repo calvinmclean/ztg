@@ -2,6 +2,6 @@
 - Allow owner to upload trusted identities
 - Long-term identity store
 - Improve config
-- Finish hash chain verification
-- Look into generalized message signing (requires SetMessage and SetSignature methods on types OR a proto wrapper)
-- Merge Signature and OrderedSignature?
+- Improve server.dicePeer to use a single nested stream for simplify?
+- Instead of weird generics getter/setter, just use SignOrderedMessage with a proto.Message instead of bytes, and then set it on my own message
+- Reduce code duplication and clean up

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"time"
 
@@ -60,21 +61,25 @@ func convertfactorfightpbMoveToInternal(move *factorfightpb.Move) factorfight.Mo
 // factorfightPeer implements the Peer interface for use with streaming.
 type factorfightPeer struct {
 	stream   factorfightStream
-	dicePeer dicePeer
+	dicePeer *dicePeer
 	signer   *Signer
 	verifier *Verifier
+
+	// Hash chain tracking for ordered signatures
+	lastHash []byte
+	sequence uint64
 }
 
-var _ factorfight.Peer = factorfightPeer{}
+var _ factorfight.Peer = (*factorfightPeer)(nil)
 
 // Dice returns nil as this peer does not use dice.Peer for game communication.
-func (p factorfightPeer) Dice() dice.Peer {
+func (p *factorfightPeer) Dice() dice.Peer {
 	// Note: Update if dice.Peer is required for streaming.
 	return p.dicePeer
 }
 
 // SendMove sends a move to the stream.
-func (p factorfightPeer) SendMove(ctx context.Context, move factorfight.Move) error {
+func (p *factorfightPeer) SendMove(ctx context.Context, move factorfight.Move) error {
 	protoMove := convertInternalFactorfightMoveToProto(move)
 	ffMsg := &factorfightpb.FactorFightMessage{
 		Message: &factorfightpb.FactorFightMessage_Move{Move: protoMove},
@@ -84,11 +89,24 @@ func (p factorfightPeer) SendMove(ctx context.Context, move factorfight.Move) er
 	}
 
 	if p.signer != nil {
-		var err error
-		signedMsg, err = createSignedOrderedMessage(&factorfightpb.SignedFactorFightMessage{}, p.signer, ffMsg, nil, 1)
+		// Calculate hash of this message for hash chain
+		msgBytes, err := serializeMessage(ffMsg)
+		if err != nil {
+			return fmt.Errorf("failed to serialize message for hash chain: %w", err)
+		}
+
+		hash := sha256.Sum256(msgBytes)
+
+		// Increment sequence for ordered signature
+		p.sequence++
+
+		signedMsg, err = createSignedOrderedMessage(&factorfightpb.SignedFactorFightMessage{}, p.signer, ffMsg, p.lastHash, p.sequence)
 		if err != nil {
 			return err
 		}
+
+		// Update last hash for next message
+		p.lastHash = hash[:]
 	}
 
 	return p.stream.Send(signedMsg)
@@ -100,7 +118,7 @@ type factorfightStream interface {
 }
 
 // RecvMove receives a move from the stream.
-func (p factorfightPeer) RecvMove(ctx context.Context) (factorfight.Move, error) {
+func (p *factorfightPeer) RecvMove(ctx context.Context) (factorfight.Move, error) {
 	msg, err := p.stream.Recv()
 	if err != nil {
 		return factorfight.Move{}, err
@@ -142,16 +160,21 @@ type factorfightService struct {
 
 // StreamGame handles the gRPC streaming communication.
 func (s *factorfightService) Play(stream factorfightpb.FactorFightService_PlayServer) error {
-	signer := NewSigner(s.keyManager, s.serverAddr)
-	verifier := NewVerifier(5 * time.Minute)
+	var signer *Signer
+	var verifier *Verifier
 
-	dicePeer := dicePeer{
+	if s.signedMode {
+		signer = NewSigner(s.keyManager, s.serverAddr)
+		verifier = NewVerifier(5 * time.Minute)
+	}
+
+	dicePeer := &dicePeer{
 		ffStream: stream,
 		signer:   signer,
 		verifier: verifier,
 	}
 
-	factorfightPeer := factorfightPeer{
+	factorfightPeer := &factorfightPeer{
 		stream:   stream,
 		dicePeer: dicePeer,
 		signer:   signer,
@@ -180,7 +203,7 @@ func (s *factorfightService) Play(stream factorfightpb.FactorFightService_PlaySe
 	return nil
 }
 
-func playFactorFight(ctx context.Context, conn *grpc.ClientConn, cfg FactorFightConfig, keyManager *identity.KeyManager, serverAddr string) (*gamepb.ChallengeResponse, error) {
+func playFactorFight(ctx context.Context, conn *grpc.ClientConn, cfg FactorFightConfig, keyManager *identity.KeyManager, serverAddr string, signedMode bool) (*gamepb.ChallengeResponse, error) {
 	ffClient := factorfightpb.NewFactorFightServiceClient(conn)
 	stream, err := ffClient.Play(ctx)
 	if err != nil {
@@ -194,17 +217,23 @@ func playFactorFight(ctx context.Context, conn *grpc.ClientConn, cfg FactorFight
 		return nil, fmt.Errorf("failed to get peer identity: %w", err)
 	}
 
-	signer := NewSigner(keyManager, serverAddr)
-	verifier := NewVerifier(5 * time.Minute)
-	// Cache the peer's public key for signature verification
-	verifier.AddPeerIdentity(conn.Target(), peerIdentity.PublicKey)
-	dicePeer := dicePeer{
+	var signer *Signer
+	var verifier *Verifier
+
+	if signedMode {
+		signer = NewSigner(keyManager, serverAddr)
+		verifier = NewVerifier(5 * time.Minute)
+		// Cache the peer's public key for signature verification
+		verifier.AddPeerIdentity(conn.Target(), peerIdentity.PublicKey)
+	}
+
+	dicePeer := &dicePeer{
 		ffStream: stream,
 		signer:   signer,
 		verifier: verifier,
 	}
 
-	factorfightPeer := factorfightPeer{
+	factorfightPeer := &factorfightPeer{
 		stream:   stream,
 		dicePeer: dicePeer,
 		signer:   signer,

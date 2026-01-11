@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
@@ -20,6 +21,94 @@ type IdentityCache struct {
 	Identity  *identitypb.Identity
 	PublicKey ed25519.PublicKey
 	ExpiresAt time.Time
+}
+
+// HashChainEntry represents an entry in the hash chain for verification
+type HashChainEntry struct {
+	Hash      []byte
+	Sequence  uint64
+	ExpiresAt time.Time
+}
+
+// HashChainManager handles thread-safe tracking of hash chains for each peer
+type HashChainManager struct {
+	chains map[string]*HashChainEntry
+	mutex  sync.RWMutex
+	ttl    time.Duration
+}
+
+// NewHashChainManager creates a new hash chain manager with specified TTL
+func NewHashChainManager(ttl time.Duration) *HashChainManager {
+	return &HashChainManager{
+		chains: make(map[string]*HashChainEntry),
+		ttl:    ttl,
+	}
+}
+
+// VerifyAndAdd verifies a new hash chain entry and adds it if valid
+func (hm *HashChainManager) VerifyAndAdd(peerAddr string, previousHash []byte, currentHash []byte, sequence uint64) error {
+	hm.mutex.Lock()
+	defer hm.mutex.Unlock()
+
+	// For sequence 1, there should be no previous hash (or it should be empty/zero)
+	if sequence == 1 {
+		if len(previousHash) != 0 {
+			return fmt.Errorf("sequence 1 should have empty previous hash")
+		}
+	} else {
+		// For sequences > 1, verify the previous hash matches what we have stored
+		lastEntry, exists := hm.chains[peerAddr]
+		if !exists {
+			return fmt.Errorf("no previous hash entry found for peer %s", peerAddr)
+		}
+
+		// Check if the stored entry has expired
+		if time.Now().After(lastEntry.ExpiresAt) {
+			delete(hm.chains, peerAddr)
+			return fmt.Errorf("previous hash entry has expired for peer %s", peerAddr)
+		}
+
+		// Verify the previous hash matches what we expect
+		if !bytes.Equal(lastEntry.Hash, previousHash) {
+			return fmt.Errorf("previous hash mismatch for peer %s: expected %x, got %x",
+				peerAddr, lastEntry.Hash, previousHash)
+		}
+
+		// Verify sequence is sequential
+		if sequence != lastEntry.Sequence+1 {
+			return fmt.Errorf("sequence number mismatch for peer %s: expected %d, got %d",
+				peerAddr, lastEntry.Sequence+1, sequence)
+		}
+	}
+
+	// Add the new entry to the chain
+	hm.chains[peerAddr] = &HashChainEntry{
+		Hash:      currentHash,
+		Sequence:  sequence,
+		ExpiresAt: time.Now().Add(hm.ttl),
+	}
+
+	return nil
+}
+
+// Clear removes all entries from the hash chain
+func (hm *HashChainManager) Clear() {
+	hm.mutex.Lock()
+	defer hm.mutex.Unlock()
+	hm.chains = make(map[string]*HashChainEntry)
+}
+
+// Cleanup removes expired entries from the hash chains
+func (hm *HashChainManager) Cleanup() {
+	hm.mutex.Lock()
+	defer hm.mutex.Unlock()
+
+	now := time.Now()
+	for addr, entry := range hm.chains {
+		if now.After(entry.ExpiresAt) {
+			delete(hm.chains, addr)
+		}
+	}
 }
 
 // IdentityCacheManager handles thread-safe caching of peer identities
@@ -137,12 +226,14 @@ func (cm *IdentityCacheManager) Cleanup() {
 // Verifier handles signature verification and identity management
 type Verifier struct {
 	identityCache *IdentityCacheManager
+	hashChain     *HashChainManager
 }
 
 // NewVerifier creates a new Verifier instance
 func NewVerifier(ttl time.Duration) *Verifier {
 	return &Verifier{
 		identityCache: NewIdentityCacheManager(ttl),
+		hashChain:     NewHashChainManager(ttl),
 	}
 }
 
@@ -221,8 +312,12 @@ func (v *Verifier) VerifyOrderedSignature(message []byte, signature *identitypb.
 			return fmt.Errorf("invalid ordered signature for cached identity %s", signature.SignerAddress)
 		}
 
-		// TODO: implement hash chain verification for PreviousHash
-		// For now, we'll just accept any previous hash
+		// SECURITY: Verify hash chain
+		currentHash := hash[:]
+		if err := v.hashChain.VerifyAndAdd(signature.SignerAddress, signature.PreviousHash, currentHash, signature.Sequence); err != nil {
+			return fmt.Errorf("hash chain verification failed for %s: %w", signature.SignerAddress, err)
+		}
+
 		return nil
 	}
 
@@ -247,8 +342,11 @@ func (v *Verifier) VerifyOrderedSignature(message []byte, signature *identitypb.
 	// Cache ONLY after successful verification
 	v.identityCache.Set(signature.SignerAddress, peerIdentity)
 
-	// TODO: implement hash chain verification for PreviousHash
-	// For now, we'll just accept any previous hash
+	// SECURITY: Verify hash chain
+	currentHash := hash[:]
+	if err := v.hashChain.VerifyAndAdd(signature.SignerAddress, signature.PreviousHash, currentHash, signature.Sequence); err != nil {
+		return fmt.Errorf("hash chain verification failed for %s: %w", signature.SignerAddress, err)
+	}
 
 	return nil
 }
@@ -289,4 +387,14 @@ func (v *Verifier) CleanupIdentityCache() {
 // GetCacheSize returns the number of cached identities
 func (v *Verifier) GetCacheSize() int {
 	return v.identityCache.Size()
+}
+
+// ClearHashChain clears all hash chain entries
+func (v *Verifier) ClearHashChain() {
+	v.hashChain.Clear()
+}
+
+// CleanupHashChain removes expired hash chain entries
+func (v *Verifier) CleanupHashChain() {
+	v.hashChain.Cleanup()
 }

@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/ed25519"
+	"crypto/sha256"
 	"testing"
 	"time"
 
@@ -42,7 +43,7 @@ func TestSigner_BasicOperations(t *testing.T) {
 	}
 
 	// Test ordered message signing
-	orderedSig, err := signer.SignOrderedMessage(message, []byte("prev_hash"), 1)
+	orderedSig, err := signer.SignOrderedMessage(message, []byte{}, 1)
 	if err != nil {
 		t.Fatalf("Failed to sign ordered message: %v", err)
 	}
@@ -59,8 +60,8 @@ func TestSigner_BasicOperations(t *testing.T) {
 		t.Fatalf("Expected sequence 1, got %d", orderedSig.Sequence)
 	}
 
-	if string(orderedSig.PreviousHash) != "prev_hash" {
-		t.Fatalf("Expected previous hash prev_hash, got %s", string(orderedSig.PreviousHash))
+	if len(orderedSig.PreviousHash) != 0 {
+		t.Fatalf("Expected empty previous hash, got %s", string(orderedSig.PreviousHash))
 	}
 }
 
@@ -164,7 +165,7 @@ func TestVerifier_VerifyOrderedSignature(t *testing.T) {
 	orderedSig := &identitypb.OrderedSignature{
 		Signature:     signature,
 		SignerAddress: "localhost:8081",
-		PreviousHash:  []byte("previous_hash"),
+		PreviousHash:  []byte{}, // Empty previous hash for sequence 1
 		Sequence:      1,
 	}
 
@@ -178,7 +179,7 @@ func TestVerifier_VerifyOrderedSignature(t *testing.T) {
 	zeroSeqSig := &identitypb.OrderedSignature{
 		Signature:     signature,
 		SignerAddress: "localhost:8081",
-		PreviousHash:  []byte("previous_hash"),
+		PreviousHash:  []byte{}, // Empty previous hash for sequence 0 (should still fail)
 		Sequence:      0,
 	}
 	err = verifier.VerifyOrderedSignature(message, zeroSeqSig)
@@ -468,5 +469,118 @@ func TestSigner_Verifier_Integration(t *testing.T) {
 	verifier.ClearIdentityCache()
 	if verifier.GetCacheSize() != 0 {
 		t.Fatalf("Expected empty cache after clear")
+	}
+}
+
+func TestVerifier_HashChainVerification(t *testing.T) {
+	km, err := identity.NewKeyManager(identity.KeyConfig{
+		PrivateKeyPath: "../keys/example_ed25519.pem",
+		ServerAddress:  "localhost:8081",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create key manager: %v", err)
+	}
+
+	verifier := NewVerifier(5 * time.Minute)
+	verifier.AddPeerIdentity("localhost:8081", km.PublicKey())
+
+	signer := identity.NewSigner(km.PrivateKey(), "localhost:8081")
+
+	// Test valid hash chain sequence
+	message1 := []byte("message 1")
+	signature1, err := signer.Sign(message1)
+	if err != nil {
+		t.Fatalf("Failed to sign message 1: %v", err)
+	}
+	hash1 := sha256.Sum256(message1)
+
+	orderedSig1 := &identitypb.OrderedSignature{
+		Signature:     signature1,
+		SignerAddress: "localhost:8081",
+		PreviousHash:  []byte{}, // Empty for first message
+		Sequence:      1,
+	}
+
+	err = verifier.VerifyOrderedSignature(message1, orderedSig1)
+	if err != nil {
+		t.Fatalf("Failed to verify first message in hash chain: %v", err)
+	}
+
+	// Test second message with correct previous hash
+	message2 := []byte("message 2")
+	signature2, err := signer.Sign(message2)
+	if err != nil {
+		t.Fatalf("Failed to sign message 2: %v", err)
+	}
+	hash2 := sha256.Sum256(message2)
+
+	orderedSig2 := &identitypb.OrderedSignature{
+		Signature:     signature2,
+		SignerAddress: "localhost:8081",
+		PreviousHash:  hash1[:], // Correct previous hash
+		Sequence:      2,
+	}
+
+	err = verifier.VerifyOrderedSignature(message2, orderedSig2)
+	if err != nil {
+		t.Fatalf("Failed to verify second message in hash chain: %v", err)
+	}
+
+	// Test third message with correct previous hash
+	message3 := []byte("message 3")
+	signature3, err := signer.Sign(message3)
+	if err != nil {
+		t.Fatalf("Failed to sign message 3: %v", err)
+	}
+
+	orderedSig3 := &identitypb.OrderedSignature{
+		Signature:     signature3,
+		SignerAddress: "localhost:8081",
+		PreviousHash:  hash2[:], // Correct previous hash
+		Sequence:      3,
+	}
+
+	err = verifier.VerifyOrderedSignature(message3, orderedSig3)
+	if err != nil {
+		t.Fatalf("Failed to verify third message in hash chain: %v", err)
+	}
+
+	// Test hash chain violation - wrong previous hash
+	wrongHashSig := &identitypb.OrderedSignature{
+		Signature:     signature3,
+		SignerAddress: "localhost:8081",
+		PreviousHash:  []byte("wrong_hash"), // Wrong previous hash
+		Sequence:      4,
+	}
+
+	err = verifier.VerifyOrderedSignature(message3, wrongHashSig)
+	if err == nil {
+		t.Fatal("Should fail verification with wrong previous hash")
+	}
+
+	// Test sequence violation - wrong sequence number
+	wrongSeqSig := &identitypb.OrderedSignature{
+		Signature:     signature3,
+		SignerAddress: "localhost:8081",
+		PreviousHash:  hash2[:], // Correct previous hash
+		Sequence:      10,       // Wrong sequence number
+	}
+
+	err = verifier.VerifyOrderedSignature(message3, wrongSeqSig)
+	if err == nil {
+		t.Fatal("Should fail verification with wrong sequence number")
+	}
+
+	// Test sequence 1 with non-empty previous hash should fail
+	seq1WithHash := &identitypb.OrderedSignature{
+		Signature:     signature1,
+		SignerAddress: "localhost:8081",
+		PreviousHash:  []byte("some_hash"), // Should be empty for sequence 1
+		Sequence:      1,
+	}
+
+	err = verifier.VerifyOrderedSignature(message1, seq1WithHash)
+	if err == nil {
+		t.Fatal("Should fail verification with non-empty previous hash for sequence 1")
 	}
 }

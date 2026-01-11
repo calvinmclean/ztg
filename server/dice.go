@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"time"
 
@@ -46,12 +47,16 @@ type dicePeer struct {
 	}
 	signer   *Signer
 	verifier *Verifier
+
+	// Hash chain tracking for ordered signatures
+	lastHash []byte
+	sequence uint64
 }
 
-var _ dice.Peer = dicePeer{}
+var _ dice.Peer = (*dicePeer)(nil)
 
 // Send sends a message to the stream.
-func (p dicePeer) Send(ctx context.Context, msg dice.Message) error {
+func (p *dicePeer) Send(ctx context.Context, msg dice.Message) error {
 	if p.diceStream != nil {
 		protoMsg := convertInternalDiceMessageToProto(msg)
 		signedMsg := &dicepb.SignedMessage{
@@ -78,18 +83,31 @@ func (p dicePeer) Send(ctx context.Context, msg dice.Message) error {
 	}
 
 	if p.signer != nil {
-		var err error
-		signedFFMsg, err = createSignedOrderedMessage(&factorfightpb.SignedFactorFightMessage{}, p.signer, ffMsg, nil, 1)
+		// Calculate hash of this message for hash chain
+		msgBytes, err := serializeMessage(ffMsg)
+		if err != nil {
+			return fmt.Errorf("failed to serialize message for hash chain: %w", err)
+		}
+
+		hash := sha256.Sum256(msgBytes)
+
+		// Increment sequence for ordered signature
+		p.sequence++
+
+		signedFFMsg, err = createSignedOrderedMessage(&factorfightpb.SignedFactorFightMessage{}, p.signer, ffMsg, p.lastHash, p.sequence)
 		if err != nil {
 			return err
 		}
+
+		// Update last hash for next message
+		p.lastHash = hash[:]
 	}
 
 	return p.ffStream.Send(signedFFMsg)
 }
 
 // Recv receives a message from the stream.
-func (p dicePeer) Recv(ctx context.Context) (dice.Message, error) {
+func (p *dicePeer) Recv(ctx context.Context) (dice.Message, error) {
 	if p.diceStream != nil {
 		msg, err := p.diceStream.Recv()
 		if err != nil {
@@ -154,9 +172,15 @@ type diceService struct {
 
 // StreamGame handles the gRPC streaming communication.
 func (s *diceService) Roll(stream dicepb.DiceService_RollServer) error {
-	signer := NewSigner(s.keyManager, s.serverAddr)
-	verifier := NewVerifier(5 * time.Minute)
-	dicePeer := dicePeer{
+	var signer *Signer
+	var verifier *Verifier
+
+	if s.signedMode {
+		signer = NewSigner(s.keyManager, s.serverAddr)
+		verifier = NewVerifier(5 * time.Minute)
+	}
+
+	dicePeer := &dicePeer{
 		diceStream: stream,
 		signer:     signer,
 		verifier:   verifier,
@@ -175,7 +199,7 @@ func (s *diceService) Roll(stream dicepb.DiceService_RollServer) error {
 	return nil
 }
 
-func playHighRoll(ctx context.Context, conn *grpc.ClientConn, keyManager *identity.KeyManager, serverAddr string) (*gamepb.ChallengeResponse, error) {
+func playHighRoll(ctx context.Context, conn *grpc.ClientConn, keyManager *identity.KeyManager, serverAddr string, signedMode bool) (*gamepb.ChallengeResponse, error) {
 	client := dicepb.NewDiceServiceClient(conn)
 
 	stream, err := client.Roll(ctx)
@@ -183,9 +207,15 @@ func playHighRoll(ctx context.Context, conn *grpc.ClientConn, keyManager *identi
 		return nil, err
 	}
 
-	signer := NewSigner(keyManager, serverAddr)
-	verifier := NewVerifier(5 * time.Minute)
-	dicePeer := dicePeer{
+	var signer *Signer
+	var verifier *Verifier
+
+	if signedMode {
+		signer = NewSigner(keyManager, serverAddr)
+		verifier = NewVerifier(5 * time.Minute)
+	}
+
+	dicePeer := &dicePeer{
 		diceStream: stream,
 		signer:     signer,
 		verifier:   verifier,

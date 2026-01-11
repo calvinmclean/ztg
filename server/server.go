@@ -69,9 +69,9 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.ChallengeReques
 
 	switch strings.ToLower(req.GameName) {
 	case "factorfight":
-		return playFactorFight(ctx, conn, s.cfg.FactorFight, s.keyManager, s.serverAddr)
+		return playFactorFight(ctx, conn, s.cfg.FactorFight, s.keyManager, s.serverAddr, s.signedMode)
 	case "highroll":
-		return playHighRoll(ctx, conn, s.keyManager, s.serverAddr)
+		return playHighRoll(ctx, conn, s.keyManager, s.serverAddr, s.signedMode)
 	default:
 		return nil, fmt.Errorf("unknown game: %q", req.GameName)
 	}
