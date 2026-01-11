@@ -76,21 +76,8 @@ func (p *dicePeer) Recv(ctx context.Context) (dice.Message, error) {
 		return dice.Message{}, err
 	}
 
-	// Verify signature if verifier exists
-	// TODO: update to use a nil/mock verifier and abstract this
-	if p.verifier != nil {
-		if msg.Signature == nil {
-			return dice.Message{}, fmt.Errorf("message is not signed but verifier is configured")
-		}
-
-		msgBytes, err := serializeMessage(msg.Message)
-		if err != nil {
-			return dice.Message{}, fmt.Errorf("failed to serialize message: %w", err)
-		}
-
-		if err := p.verifier.VerifyMessageSignature(msgBytes, msg.Signature); err != nil {
-			return dice.Message{}, fmt.Errorf("signature verification failed: %w", err)
-		}
+	if err := verifyMessageSignature(p.verifier, msg.Message, msg.Signature); err != nil {
+		return dice.Message{}, fmt.Errorf("signature verification failed: %w", err)
 	}
 
 	return convertdicepbMessageToInternal(msg.Message), nil

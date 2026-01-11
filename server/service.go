@@ -1,9 +1,14 @@
 package server
 
 import (
+	"fmt"
+
 	"ztg/dice"
 	"ztg/factorfight"
+	identitypb "ztg/gen/go/identity/v1"
 	"ztg/identity"
+
+	"google.golang.org/protobuf/proto"
 )
 
 // createSignerVerifierPair creates a signer and verifier pair if signed mode is enabled
@@ -38,6 +43,42 @@ func resolveStrategy(strategy factorfight.Strategy) factorfight.Strategy {
 		return strategy
 	}
 	return factorfight.DefaultStrategy
+}
+
+// verifyMessageSignature verifies a regular message signature if a verifier is configured
+func verifyMessageSignature(verifier *Verifier, msg proto.Message, signature *identitypb.Signature) error {
+	if verifier == nil {
+		return nil
+	}
+
+	if signature == nil {
+		return fmt.Errorf("message is not signed but verifier is configured")
+	}
+
+	msgBytes, err := serializeMessage(msg)
+	if err != nil {
+		return fmt.Errorf("failed to serialize message: %w", err)
+	}
+
+	return verifier.VerifyMessageSignature(msgBytes, signature)
+}
+
+// verifyOrderedSignature verifies an ordered message signature if a verifier is configured
+func verifyOrderedSignature(verifier *Verifier, msg proto.Message, signature *identitypb.OrderedSignature) error {
+	if verifier == nil {
+		return nil
+	}
+
+	if signature == nil {
+		return fmt.Errorf("message is not signed but verifier is configured")
+	}
+
+	msgBytes, err := serializeMessage(msg)
+	if err != nil {
+		return fmt.Errorf("failed to serialize message: %w", err)
+	}
+
+	return verifier.VerifyOrderedSignature(msgBytes, signature)
 }
 
 // createRoller creates a dice roller with the specified peer

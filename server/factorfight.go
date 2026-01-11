@@ -121,20 +121,8 @@ func (p *factorfightPeer) RecvMove(ctx context.Context) (factorfight.Move, error
 		return factorfight.Move{}, err
 	}
 
-	// Verify signature if verifier exists
-	if p.verifier != nil {
-		if msg.Signature == nil {
-			return factorfight.Move{}, fmt.Errorf("message is not signed but verifier is configured")
-		}
-
-		msgBytes, err := serializeMessage(msg.Message)
-		if err != nil {
-			return factorfight.Move{}, fmt.Errorf("failed to serialize message: %w", err)
-		}
-
-		if err := p.verifier.VerifyOrderedSignature(msgBytes, msg.Signature); err != nil {
-			return factorfight.Move{}, fmt.Errorf("signature verification failed: %w", err)
-		}
+	if err := verifyOrderedSignature(p.verifier, msg.Message, msg.Signature); err != nil {
+		return factorfight.Move{}, fmt.Errorf("signature verification failed: %w", err)
 	}
 
 	switch m := msg.Message.Message.(type) {
@@ -266,20 +254,8 @@ func (p *factorfightPeer) Recv(ctx context.Context) (dice.Message, error) {
 		return dice.Message{}, err
 	}
 
-	// Verify signature if signedServer exists
-	if p.verifier != nil {
-		if msg.Signature == nil {
-			return dice.Message{}, fmt.Errorf("message is not signed but verifier is configured")
-		}
-
-		msgBytes, err := serializeMessage(msg.Message)
-		if err != nil {
-			return dice.Message{}, fmt.Errorf("failed to serialize message: %w", err)
-		}
-
-		if err := p.verifier.VerifyOrderedSignature(msgBytes, msg.Signature); err != nil {
-			return dice.Message{}, fmt.Errorf("signature verification failed: %w", err)
-		}
+	if err := verifyOrderedSignature(p.verifier, msg.Message, msg.Signature); err != nil {
+		return dice.Message{}, fmt.Errorf("signature verification failed: %w", err)
 	}
 
 	switch m := msg.Message.Message.(type) {
