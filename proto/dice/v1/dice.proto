@@ -21,10 +21,10 @@ message Message {
 }
 
 message SignedMessage {
-    Message message = 1;
-    identity.v1.Signature signature = 2;
+  Message message = 1;
+  optional identity.v1.Signature signature = 2;
 }
 
 service DiceService {
-  rpc Roll(stream Message) returns (stream Message);
+  rpc Roll(stream SignedMessage) returns (stream SignedMessage);
 }

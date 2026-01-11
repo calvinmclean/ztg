@@ -26,7 +26,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FactorFightServiceClient interface {
-	Play(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[FactorFightMessage, FactorFightMessage], error)
+	Play(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[SignedFactorFightMessage, SignedFactorFightMessage], error)
 }
 
 type factorFightServiceClient struct {
@@ -37,24 +37,24 @@ func NewFactorFightServiceClient(cc grpc.ClientConnInterface) FactorFightService
 	return &factorFightServiceClient{cc}
 }
 
-func (c *factorFightServiceClient) Play(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[FactorFightMessage, FactorFightMessage], error) {
+func (c *factorFightServiceClient) Play(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[SignedFactorFightMessage, SignedFactorFightMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &FactorFightService_ServiceDesc.Streams[0], FactorFightService_Play_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[FactorFightMessage, FactorFightMessage]{ClientStream: stream}
+	x := &grpc.GenericClientStream[SignedFactorFightMessage, SignedFactorFightMessage]{ClientStream: stream}
 	return x, nil
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type FactorFightService_PlayClient = grpc.BidiStreamingClient[FactorFightMessage, FactorFightMessage]
+type FactorFightService_PlayClient = grpc.BidiStreamingClient[SignedFactorFightMessage, SignedFactorFightMessage]
 
 // FactorFightServiceServer is the server API for FactorFightService service.
 // All implementations must embed UnimplementedFactorFightServiceServer
 // for forward compatibility.
 type FactorFightServiceServer interface {
-	Play(grpc.BidiStreamingServer[FactorFightMessage, FactorFightMessage]) error
+	Play(grpc.BidiStreamingServer[SignedFactorFightMessage, SignedFactorFightMessage]) error
 	mustEmbedUnimplementedFactorFightServiceServer()
 }
 
@@ -65,7 +65,7 @@ type FactorFightServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedFactorFightServiceServer struct{}
 
-func (UnimplementedFactorFightServiceServer) Play(grpc.BidiStreamingServer[FactorFightMessage, FactorFightMessage]) error {
+func (UnimplementedFactorFightServiceServer) Play(grpc.BidiStreamingServer[SignedFactorFightMessage, SignedFactorFightMessage]) error {
 	return status.Errorf(codes.Unimplemented, "method Play not implemented")
 }
 func (UnimplementedFactorFightServiceServer) mustEmbedUnimplementedFactorFightServiceServer() {}
@@ -90,11 +90,11 @@ func RegisterFactorFightServiceServer(s grpc.ServiceRegistrar, srv FactorFightSe
 }
 
 func _FactorFightService_Play_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(FactorFightServiceServer).Play(&grpc.GenericServerStream[FactorFightMessage, FactorFightMessage]{ServerStream: stream})
+	return srv.(FactorFightServiceServer).Play(&grpc.GenericServerStream[SignedFactorFightMessage, SignedFactorFightMessage]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type FactorFightService_PlayServer = grpc.BidiStreamingServer[FactorFightMessage, FactorFightMessage]
+type FactorFightService_PlayServer = grpc.BidiStreamingServer[SignedFactorFightMessage, SignedFactorFightMessage]
 
 // FactorFightService_ServiceDesc is the grpc.ServiceDesc for FactorFightService service.
 // It's only intended for direct use with grpc.RegisterService,

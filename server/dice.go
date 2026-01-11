@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"ztg/dice"
+	"ztg/identity"
 
 	dicepb "ztg/gen/go/dice/v1"
 	factorfightpb "ztg/gen/go/factorfight/v1"
@@ -38,9 +39,10 @@ type dicePeer struct {
 	// TODO: I might be able to make this more generic and combine the two streams since they
 	// theoretically both use dice.Message proto
 	diceStream interface {
-		Recv() (*dicepb.Message, error)
-		Send(*dicepb.Message) error
+		Recv() (*dicepb.SignedMessage, error)
+		Send(*dicepb.SignedMessage) error
 	}
+	signedServer *SignedServer
 }
 
 var _ dice.Peer = dicePeer{}
@@ -48,11 +50,39 @@ var _ dice.Peer = dicePeer{}
 // Send sends a message to the stream.
 func (p dicePeer) Send(ctx context.Context, msg dice.Message) error {
 	if p.diceStream != nil {
-		return p.diceStream.Send(convertInternalDiceMessageToProto(msg))
+		protoMsg := convertInternalDiceMessageToProto(msg)
+		signedMsg := &dicepb.SignedMessage{
+			Message: protoMsg,
+		}
+
+		if p.signedServer != nil {
+			var err error
+			signedMsg, err = p.signedServer.createSignedDiceMessage(protoMsg)
+			if err != nil {
+				return err
+			}
+		}
+
+		return p.diceStream.Send(signedMsg)
 	}
-	return p.ffStream.Send(&factorfightpb.FactorFightMessage{
-		Message: &factorfightpb.FactorFightMessage_DiceMsg{DiceMsg: convertInternalDiceMessageToProto(msg)},
-	})
+
+	protoMsg := convertInternalDiceMessageToProto(msg)
+	ffMsg := &factorfightpb.FactorFightMessage{
+		Message: &factorfightpb.FactorFightMessage_DiceMsg{DiceMsg: protoMsg},
+	}
+	signedFFMsg := &factorfightpb.SignedFactorFightMessage{
+		Message: ffMsg,
+	}
+
+	if p.signedServer != nil {
+		var err error
+		signedFFMsg, err = p.signedServer.createSignedFactorFightMessage(ffMsg, nil, 1)
+		if err != nil {
+			return err
+		}
+	}
+
+	return p.ffStream.Send(signedFFMsg)
 }
 
 // Recv receives a message from the stream.
@@ -63,7 +93,23 @@ func (p dicePeer) Recv(ctx context.Context) (dice.Message, error) {
 			return dice.Message{}, err
 		}
 
-		return convertdicepbMessageToInternal(msg), nil
+		// Verify signature if signedServer exists
+		if p.signedServer != nil {
+			if msg.Signature == nil {
+				return dice.Message{}, fmt.Errorf("message is not signed but signedServer is configured")
+			}
+
+			msgBytes, err := p.signedServer.serializeMessage(msg.Message)
+			if err != nil {
+				return dice.Message{}, fmt.Errorf("failed to serialize message: %w", err)
+			}
+
+			if err := p.signedServer.verifyMessageSignature(msgBytes, msg.Signature); err != nil {
+				return dice.Message{}, fmt.Errorf("signature verification failed: %w", err)
+			}
+		}
+
+		return convertdicepbMessageToInternal(msg.Message), nil
 	}
 
 	msg, err := p.ffStream.Recv()
@@ -71,7 +117,23 @@ func (p dicePeer) Recv(ctx context.Context) (dice.Message, error) {
 		return dice.Message{}, err
 	}
 
-	switch m := msg.Message.(type) {
+	// Verify signature if signedServer exists
+	if p.signedServer != nil {
+		if msg.Signature == nil {
+			return dice.Message{}, fmt.Errorf("message is not signed but signedServer is configured")
+		}
+
+		msgBytes, err := p.signedServer.serializeMessage(msg.Message)
+		if err != nil {
+			return dice.Message{}, fmt.Errorf("failed to serialize message: %w", err)
+		}
+
+		if err := p.signedServer.verifyOrderedSignature(msgBytes, msg.Signature); err != nil {
+			return dice.Message{}, fmt.Errorf("signature verification failed: %w", err)
+		}
+	}
+
+	switch m := msg.Message.Message.(type) {
 	case *factorfightpb.FactorFightMessage_DiceMsg:
 		return convertdicepbMessageToInternal(m.DiceMsg), nil
 	default:
@@ -82,12 +144,17 @@ func (p dicePeer) Recv(ctx context.Context) (dice.Message, error) {
 // diceService implements the gRPC server for Dice.
 type diceService struct {
 	dicepb.UnimplementedDiceServiceServer
+	keyManager *identity.KeyManager
+	serverAddr string
+	signedMode bool
 }
 
 // StreamGame handles the gRPC streaming communication.
 func (s *diceService) Roll(stream dicepb.DiceService_RollServer) error {
+	signedServer := NewSignedServer(s.keyManager, s.serverAddr)
 	dicePeer := dicePeer{
-		diceStream: stream,
+		diceStream:   stream,
+		signedServer: signedServer,
 	}
 
 	roller, err := dice.NewRoller(10, dicePeer)
@@ -103,7 +170,7 @@ func (s *diceService) Roll(stream dicepb.DiceService_RollServer) error {
 	return nil
 }
 
-func playHighRoll(ctx context.Context, conn *grpc.ClientConn) (*gamepb.ChallengeResponse, error) {
+func playHighRoll(ctx context.Context, conn *grpc.ClientConn, keyManager *identity.KeyManager, serverAddr string) (*gamepb.ChallengeResponse, error) {
 	client := dicepb.NewDiceServiceClient(conn)
 
 	stream, err := client.Roll(ctx)
@@ -111,8 +178,10 @@ func playHighRoll(ctx context.Context, conn *grpc.ClientConn) (*gamepb.Challenge
 		return nil, err
 	}
 
+	signedServer := NewSignedServer(keyManager, serverAddr)
 	dicePeer := dicePeer{
-		diceStream: stream,
+		diceStream:   stream,
+		signedServer: signedServer,
 	}
 
 	// TODO: add configurable die size

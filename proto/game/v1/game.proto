@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package game.v1;
 
-import "identity/v1/identity.proto";
-
 option go_package = "ztg/gen/go/game/v1";
 
 // A generic empty response message.
@@ -18,16 +16,6 @@ message ChallengeRequest {
 message ChallengeResponse {
   optional bool win = 1; // optional to avoid omitempty when false
   string message = 2;
-}
-
-message SignedChallengeRequest {
-    ChallengeRequest request = 1;
-    identity.v1.OrderedSignature signature = 2;
-}
-
-message SignedChallengeResponse {
-    ChallengeResponse response = 1;
-    identity.v1.OrderedSignature signature = 2;
 }
 
 // GameService defines gRPC services for game initiation.

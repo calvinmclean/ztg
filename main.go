@@ -20,6 +20,7 @@ func main() {
 	generateKey := flag.Bool("generate-key", false, "Generate new Ed25519 key pair")
 	outputPath := flag.String("output", "", "Output path for generated key")
 	serverAddress := flag.String("server-address", "", "Server address to embed in key")
+	signedMode := flag.Bool("signed", false, "Enable signed server mode (with identity verification)")
 	flag.Parse()
 
 	if *generateKey {
@@ -33,6 +34,17 @@ func main() {
 		return
 	}
 
+	if *signedMode {
+		fmt.Println("🔐 Starting server in SIGNED mode with identity verification")
+		fmt.Println("   - All signed RPCs will require valid signatures")
+		fmt.Println("   - Server will sign all responses with its private key")
+		fmt.Println("   - Hash chain verification enabled for FactorFight")
+	} else {
+		fmt.Println("🎲 Starting server in REGULAR mode")
+		fmt.Println("   - Unsigned RPCs are available")
+		fmt.Println("   - Use --signed flag to enable identity verification")
+	}
+
 	addr := os.Getenv("ADDR")
 
 	cfg := server.Config{
@@ -40,6 +52,7 @@ func main() {
 		ServerName: "ztg-server",
 		OwnerName:  "ztg-user",
 		Version:    "1.0.0",
+		SignedMode: *signedMode,
 		KeyConfig: identity.KeyConfig{
 			ServerAddress: addr,
 		},

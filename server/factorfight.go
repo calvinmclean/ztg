@@ -6,6 +6,7 @@ import (
 
 	"ztg/dice"
 	"ztg/factorfight"
+	"ztg/identity"
 
 	factorfightpb "ztg/gen/go/factorfight/v1"
 	gamepb "ztg/gen/go/game/v1"
@@ -55,8 +56,9 @@ func convertfactorfightpbMoveToInternal(move *factorfightpb.Move) factorfight.Mo
 
 // factorfightPeer implements the Peer interface for use with streaming.
 type factorfightPeer struct {
-	stream   factorfightStream
-	dicePeer dicePeer
+	stream       factorfightStream
+	dicePeer     dicePeer
+	signedServer *SignedServer
 }
 
 var _ factorfight.Peer = factorfightPeer{}
@@ -69,14 +71,28 @@ func (p factorfightPeer) Dice() dice.Peer {
 
 // SendMove sends a move to the stream.
 func (p factorfightPeer) SendMove(ctx context.Context, move factorfight.Move) error {
-	return p.stream.Send(&factorfightpb.FactorFightMessage{
-		Message: &factorfightpb.FactorFightMessage_Move{Move: convertInternalFactorfightMoveToProto(move)},
-	})
+	protoMove := convertInternalFactorfightMoveToProto(move)
+	ffMsg := &factorfightpb.FactorFightMessage{
+		Message: &factorfightpb.FactorFightMessage_Move{Move: protoMove},
+	}
+	signedMsg := &factorfightpb.SignedFactorFightMessage{
+		Message: ffMsg,
+	}
+
+	if p.signedServer != nil {
+		var err error
+		signedMsg, err = p.signedServer.createSignedFactorFightMessage(ffMsg, nil, 1)
+		if err != nil {
+			return err
+		}
+	}
+
+	return p.stream.Send(signedMsg)
 }
 
 type factorfightStream interface {
-	Recv() (*factorfightpb.FactorFightMessage, error)
-	Send(*factorfightpb.FactorFightMessage) error
+	Recv() (*factorfightpb.SignedFactorFightMessage, error)
+	Send(*factorfightpb.SignedFactorFightMessage) error
 }
 
 // RecvMove receives a move from the stream.
@@ -86,7 +102,23 @@ func (p factorfightPeer) RecvMove(ctx context.Context) (factorfight.Move, error)
 		return factorfight.Move{}, err
 	}
 
-	switch m := msg.Message.(type) {
+	// Verify signature if signedServer exists
+	if p.signedServer != nil {
+		if msg.Signature == nil {
+			return factorfight.Move{}, fmt.Errorf("message is not signed but signedServer is configured")
+		}
+
+		msgBytes, err := p.signedServer.serializeMessage(msg.Message)
+		if err != nil {
+			return factorfight.Move{}, fmt.Errorf("failed to serialize message: %w", err)
+		}
+
+		if err := p.signedServer.verifyOrderedSignature(msgBytes, msg.Signature); err != nil {
+			return factorfight.Move{}, fmt.Errorf("signature verification failed: %w", err)
+		}
+	}
+
+	switch m := msg.Message.Message.(type) {
 	case *factorfightpb.FactorFightMessage_Move:
 		return convertfactorfightpbMoveToInternal(m.Move), nil
 	default:
@@ -98,18 +130,24 @@ func (p factorfightPeer) RecvMove(ctx context.Context) (factorfight.Move, error)
 type factorfightService struct {
 	factorfightpb.UnimplementedFactorFightServiceServer
 
-	cfg FactorFightConfig
+	cfg        FactorFightConfig
+	keyManager *identity.KeyManager
+	serverAddr string
+	signedMode bool
 }
 
 // StreamGame handles the gRPC streaming communication.
 func (s *factorfightService) Play(stream factorfightpb.FactorFightService_PlayServer) error {
+	signedServer := NewSignedServer(s.keyManager, s.serverAddr)
 	dicePeer := dicePeer{
-		ffStream: stream,
+		ffStream:     stream,
+		signedServer: signedServer,
 	}
 
 	factorfightPeer := factorfightPeer{
-		stream:   stream,
-		dicePeer: dicePeer,
+		stream:       stream,
+		dicePeer:     dicePeer,
+		signedServer: signedServer,
 	}
 
 	strategy := s.cfg.Strategy
@@ -134,20 +172,23 @@ func (s *factorfightService) Play(stream factorfightpb.FactorFightService_PlaySe
 	return nil
 }
 
-func playFactorFight(ctx context.Context, conn *grpc.ClientConn, cfg FactorFightConfig) (*gamepb.ChallengeResponse, error) {
+func playFactorFight(ctx context.Context, conn *grpc.ClientConn, cfg FactorFightConfig, keyManager *identity.KeyManager, serverAddr string) (*gamepb.ChallengeResponse, error) {
 	ffClient := factorfightpb.NewFactorFightServiceClient(conn)
 	stream, err := ffClient.Play(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	signedServer := NewSignedServer(keyManager, serverAddr)
 	dicePeer := dicePeer{
-		ffStream: stream,
+		ffStream:     stream,
+		signedServer: signedServer,
 	}
 
 	factorfightPeer := factorfightPeer{
-		stream:   stream,
-		dicePeer: dicePeer,
+		stream:       stream,
+		dicePeer:     dicePeer,
+		signedServer: signedServer,
 	}
 
 	strategy := cfg.Strategy

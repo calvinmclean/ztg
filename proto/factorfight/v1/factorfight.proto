@@ -29,9 +29,9 @@ message FactorFightMessage {
 
 message SignedFactorFightMessage {
   FactorFightMessage message = 1;
-  identity.v1.OrderedSignature signature = 2;
+  optional identity.v1.OrderedSignature signature = 2;
 }
 
 service FactorFightService {
-  rpc Play(stream FactorFightMessage) returns (stream FactorFightMessage);
+  rpc Play(stream SignedFactorFightMessage) returns (stream SignedFactorFightMessage);
 }

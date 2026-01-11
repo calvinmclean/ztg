@@ -34,6 +34,7 @@ type Config struct {
 	ServerName string
 	OwnerName  string
 	Version    string
+	SignedMode bool
 
 	KeyConfig   identity.KeyConfig
 	FactorFight FactorFightConfig
@@ -43,7 +44,10 @@ type Config struct {
 type gameService struct {
 	gamepb.UnimplementedGameServiceServer
 
-	cfg Config
+	cfg        Config
+	keyManager *identity.KeyManager
+	serverAddr string
+	signedMode bool
 }
 
 // identityService implements the IdentityService RPC defined in identity.proto.
@@ -65,9 +69,9 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.ChallengeReques
 
 	switch strings.ToLower(req.GameName) {
 	case "factorfight":
-		return playFactorFight(ctx, conn, s.cfg.FactorFight)
+		return playFactorFight(ctx, conn, s.cfg.FactorFight, s.keyManager, s.serverAddr)
 	case "highroll":
-		return playHighRoll(ctx, conn)
+		return playHighRoll(ctx, conn, s.keyManager, s.serverAddr)
 	default:
 		return nil, fmt.Errorf("unknown game: %q", req.GameName)
 	}
@@ -110,9 +114,23 @@ func NewServer(cfg Config) (*Server, error) {
 	}
 
 	server := grpc.NewServer()
-	gamepb.RegisterGameServiceServer(server, &gameService{cfg: cfg})
-	factorfightpb.RegisterFactorFightServiceServer(server, &factorfightService{cfg: cfg.FactorFight})
-	dicepb.RegisterDiceServiceServer(server, &diceService{})
+	gamepb.RegisterGameServiceServer(server, &gameService{
+		cfg:        cfg,
+		keyManager: keyManager,
+		serverAddr: cfg.Addr,
+		signedMode: cfg.SignedMode,
+	})
+	factorfightpb.RegisterFactorFightServiceServer(server, &factorfightService{
+		cfg:        cfg.FactorFight,
+		keyManager: keyManager,
+		serverAddr: cfg.Addr,
+		signedMode: cfg.SignedMode,
+	})
+	dicepb.RegisterDiceServiceServer(server, &diceService{
+		keyManager: keyManager,
+		serverAddr: cfg.Addr,
+		signedMode: cfg.SignedMode,
+	})
 	identitypb.RegisterIdentityServiceServer(server, &identityService{
 		keyManager: keyManager,
 		config:     cfg,

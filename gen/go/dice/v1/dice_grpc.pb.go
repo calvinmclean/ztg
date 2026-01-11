@@ -26,7 +26,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DiceServiceClient interface {
-	Roll(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Message, Message], error)
+	Roll(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[SignedMessage, SignedMessage], error)
 }
 
 type diceServiceClient struct {
@@ -37,24 +37,24 @@ func NewDiceServiceClient(cc grpc.ClientConnInterface) DiceServiceClient {
 	return &diceServiceClient{cc}
 }
 
-func (c *diceServiceClient) Roll(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Message, Message], error) {
+func (c *diceServiceClient) Roll(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[SignedMessage, SignedMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &DiceService_ServiceDesc.Streams[0], DiceService_Roll_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[Message, Message]{ClientStream: stream}
+	x := &grpc.GenericClientStream[SignedMessage, SignedMessage]{ClientStream: stream}
 	return x, nil
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type DiceService_RollClient = grpc.BidiStreamingClient[Message, Message]
+type DiceService_RollClient = grpc.BidiStreamingClient[SignedMessage, SignedMessage]
 
 // DiceServiceServer is the server API for DiceService service.
 // All implementations must embed UnimplementedDiceServiceServer
 // for forward compatibility.
 type DiceServiceServer interface {
-	Roll(grpc.BidiStreamingServer[Message, Message]) error
+	Roll(grpc.BidiStreamingServer[SignedMessage, SignedMessage]) error
 	mustEmbedUnimplementedDiceServiceServer()
 }
 
@@ -65,7 +65,7 @@ type DiceServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedDiceServiceServer struct{}
 
-func (UnimplementedDiceServiceServer) Roll(grpc.BidiStreamingServer[Message, Message]) error {
+func (UnimplementedDiceServiceServer) Roll(grpc.BidiStreamingServer[SignedMessage, SignedMessage]) error {
 	return status.Errorf(codes.Unimplemented, "method Roll not implemented")
 }
 func (UnimplementedDiceServiceServer) mustEmbedUnimplementedDiceServiceServer() {}
@@ -90,11 +90,11 @@ func RegisterDiceServiceServer(s grpc.ServiceRegistrar, srv DiceServiceServer) {
 }
 
 func _DiceService_Roll_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(DiceServiceServer).Roll(&grpc.GenericServerStream[Message, Message]{ServerStream: stream})
+	return srv.(DiceServiceServer).Roll(&grpc.GenericServerStream[SignedMessage, SignedMessage]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type DiceService_RollServer = grpc.BidiStreamingServer[Message, Message]
+type DiceService_RollServer = grpc.BidiStreamingServer[SignedMessage, SignedMessage]
 
 // DiceService_ServiceDesc is the grpc.ServiceDesc for DiceService service.
 // It's only intended for direct use with grpc.RegisterService,
