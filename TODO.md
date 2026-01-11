@@ -4,3 +4,4 @@
 - Improve config
 - Finish hash chain verification
 - Look into generalized message signing (requires SetMessage and SetSignature methods on types OR a proto wrapper)
+- Merge Signature and OrderedSignature?

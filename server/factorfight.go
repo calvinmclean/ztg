@@ -85,7 +85,7 @@ func (p factorfightPeer) SendMove(ctx context.Context, move factorfight.Move) er
 
 	if p.signer != nil {
 		var err error
-		signedMsg, err = createSignedFactorFightMessage(p.signer, ffMsg, nil, 1)
+		signedMsg, err = createSignedOrderedMessage(&factorfightpb.SignedFactorFightMessage{}, p.signer, ffMsg, nil, 1)
 		if err != nil {
 			return err
 		}

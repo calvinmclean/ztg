@@ -3,6 +3,7 @@ syntax = "proto3";
 package dice.v1;
 
 import "identity/v1/identity.proto";
+import "setters/v1/options.proto";
 
 option go_package = "ztg/gen/go/dice/v1";
 
@@ -21,6 +22,8 @@ message Message {
 }
 
 message SignedMessage {
+  option (setters.v1.generate_setters) = true;
+
   Message message = 1;
   optional identity.v1.Signature signature = 2;
 }

@@ -60,7 +60,7 @@ func (p dicePeer) Send(ctx context.Context, msg dice.Message) error {
 
 		if p.signer != nil {
 			var err error
-			signedMsg, err = createSignedDiceMessage(p.signer, protoMsg)
+			signedMsg, err = createSignedMessage(&dicepb.SignedMessage{}, p.signer, protoMsg)
 			if err != nil {
 				return err
 			}
@@ -79,7 +79,7 @@ func (p dicePeer) Send(ctx context.Context, msg dice.Message) error {
 
 	if p.signer != nil {
 		var err error
-		signedFFMsg, err = createSignedFactorFightMessage(p.signer, ffMsg, nil, 1)
+		signedFFMsg, err = createSignedOrderedMessage(&factorfightpb.SignedFactorFightMessage{}, p.signer, ffMsg, nil, 1)
 		if err != nil {
 			return err
 		}

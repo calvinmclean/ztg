@@ -2,8 +2,6 @@ package server
 
 import (
 	"fmt"
-	dicepb "ztg/gen/go/dice/v1"
-	factorfightpb "ztg/gen/go/factorfight/v1"
 	identitypb "ztg/gen/go/identity/v1"
 	"ztg/identity"
 
@@ -60,38 +58,46 @@ func serializeMessage(msg proto.Message) ([]byte, error) {
 	return proto.Marshal(msg)
 }
 
-// createSignedDiceMessage creates a signed dice message using a Signer
-func createSignedDiceMessage(signer *Signer, msg *dicepb.Message) (*dicepb.SignedMessage, error) {
+type signedMessage[T proto.Message] interface {
+	SetSignature(*identitypb.Signature)
+	SetMessage(T)
+}
+
+func createSignedMessage[T signedMessage[R], R proto.Message](result T, signer *Signer, msg R) (T, error) {
 	messageBytes, err := serializeMessage(msg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize message: %w", err)
+		return *new(T), fmt.Errorf("failed to serialize message: %w", err)
 	}
 
 	signature, err := signer.SignMessage(messageBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign message: %w", err)
+		return *new(T), fmt.Errorf("failed to sign message: %w", err)
 	}
 
-	return &dicepb.SignedMessage{
-		Message:   msg,
-		Signature: signature,
-	}, nil
+	result.SetMessage(msg)
+	result.SetSignature(signature)
+
+	return result, nil
 }
 
-// createSignedFactorFightMessage creates a signed factorfight message using a Signer
-func createSignedFactorFightMessage(signer *Signer, msg *factorfightpb.FactorFightMessage, previousHash []byte, sequence uint64) (*factorfightpb.SignedFactorFightMessage, error) {
+type orderedSignedMessage[T proto.Message] interface {
+	SetSignature(*identitypb.OrderedSignature)
+	SetMessage(T)
+}
+
+func createSignedOrderedMessage[T orderedSignedMessage[R], R proto.Message](result T, signer *Signer, msg R, previousHash []byte, sequence uint64) (T, error) {
 	messageBytes, err := serializeMessage(msg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize message: %w", err)
+		return *new(T), fmt.Errorf("failed to serialize message: %w", err)
 	}
 
 	signature, err := signer.SignOrderedMessage(messageBytes, previousHash, sequence)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign ordered message: %w", err)
+		return *new(T), fmt.Errorf("failed to sign ordered message: %w", err)
 	}
 
-	return &factorfightpb.SignedFactorFightMessage{
-		Message:   msg,
-		Signature: signature,
-	}, nil
+	result.SetMessage(msg)
+	result.SetSignature(signature)
+
+	return result, nil
 }
