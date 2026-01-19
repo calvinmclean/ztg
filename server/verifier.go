@@ -13,6 +13,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -349,6 +350,24 @@ func (v *Verifier) VerifyOrderedSignature(message []byte, signature *identitypb.
 	}
 
 	return nil
+}
+
+func (v *Verifier) VerifyOrderedSignatureProto(msg proto.Message, signature *identitypb.OrderedSignature) error {
+	if v == nil {
+		return nil
+	}
+
+	if signature == nil {
+		return fmt.Errorf("message is not signed but verifier is configured")
+	}
+
+	msgBytes, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("failed to serialize message: %w", err)
+	}
+
+	return v.VerifyOrderedSignature(msgBytes, signature)
+
 }
 
 // getPeerIdentity fetches peer identity from their gRPC service

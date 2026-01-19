@@ -1,4 +1,4 @@
-package server
+package factorfight_test
 
 import (
 	"context"
@@ -8,6 +8,9 @@ import (
 	"ztg/config"
 	"ztg/factorfight"
 	gamepb "ztg/gen/go/game/v1"
+	"ztg/identity"
+	"ztg/server"
+	ffserver "ztg/server/factorfight"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -16,11 +19,20 @@ import (
 func TestTwoServerChallenge(t *testing.T) {
 	keyConfig1 := config.KeyConfig{
 		ServerAddress:  "localhost:50052",
-		PrivateKeyPath: "../keys/example_ed25519.pem",
+		PrivateKeyPath: "../../keys/example_ed25519.pem",
 	}
 	keyConfig2 := config.KeyConfig{
 		ServerAddress:  "localhost:50053",
-		PrivateKeyPath: "../keys/example_ed25519.pem",
+		PrivateKeyPath: "../../keys/example_ed25519.pem",
+	}
+
+	km1, err := identity.NewKeyManager(keyConfig1)
+	if err != nil {
+		t.Fatalf("Failed to create KeyManager 1: %v", err)
+	}
+	km2, err := identity.NewKeyManager(keyConfig2)
+	if err != nil {
+		t.Fatalf("Failed to create KeyManager 2: %v", err)
 	}
 
 	// Create server configs
@@ -32,13 +44,14 @@ func TestTwoServerChallenge(t *testing.T) {
 		Version:    "1.0.0",
 		Signed:     false,
 	}
-	factorFightConfig1 := FactorFightConfig{
+	factorFightConfig1 := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
 		OnGameComplete: func(win bool, log factorfight.GameLog) {
 			t.Logf("Server 1 - Win: %v, Log: %v", win, log)
 			p1WinResult = &win
 		},
 	}
+	ffserver1 := ffserver.NewService(factorFightConfig1, km1, "localhost:50052", false)
 
 	var p2WinResult *bool
 	serverConfig2 := config.ServerConfig{
@@ -48,24 +61,27 @@ func TestTwoServerChallenge(t *testing.T) {
 		Version:    "1.0.0",
 		Signed:     false,
 	}
-	factorFightConfig2 := FactorFightConfig{
+	factorFightConfig2 := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
 		OnGameComplete: func(win bool, log factorfight.GameLog) {
 			t.Logf("Server 2 - Win: %v, Log: %v", win, log)
 			p2WinResult = &win
 		},
 	}
+	ffserver2 := ffserver.NewService(factorFightConfig2, km2, "localhost:50053", false)
 
 	// Create servers
-	server1, err := NewServer(serverConfig1, keyConfig1, factorFightConfig1)
+	server1, err := server.NewServer(serverConfig1, km1)
 	if err != nil {
 		t.Fatalf("Failed to create server 1: %v", err)
 	}
+	server1.Register(ffserver1)
 
-	server2, err := NewServer(serverConfig2, keyConfig2, factorFightConfig2)
+	server2, err := server.NewServer(serverConfig2, km2)
 	if err != nil {
 		t.Fatalf("Failed to create server 2: %v", err)
 	}
+	server2.Register(ffserver2)
 
 	// Start servers in goroutines
 	go func() {

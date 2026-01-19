@@ -53,18 +53,13 @@ func (s *Signer) Address() string {
 	return s.signer.Address()
 }
 
-// serializeMessage is a utility function to marshal protobuf messages
-func serializeMessage(msg proto.Message) ([]byte, error) {
-	return proto.Marshal(msg)
-}
-
-type signedMessage[T proto.Message] interface {
+type SignedMessage[T proto.Message] interface {
 	SetSignature(*identitypb.Signature)
 	SetMessage(T)
 }
 
-func createSignedMessage[T signedMessage[R], R proto.Message](result T, signer *Signer, msg R) (T, error) {
-	messageBytes, err := serializeMessage(msg)
+func CreateSignedMessage[T SignedMessage[R], R proto.Message](result T, signer *Signer, msg R) (T, error) {
+	messageBytes, err := proto.Marshal(msg)
 	if err != nil {
 		return *new(T), fmt.Errorf("failed to serialize message: %w", err)
 	}
@@ -80,13 +75,13 @@ func createSignedMessage[T signedMessage[R], R proto.Message](result T, signer *
 	return result, nil
 }
 
-type orderedSignedMessage[T proto.Message] interface {
+type OrderedSignedMessage[T proto.Message] interface {
 	SetSignature(*identitypb.OrderedSignature)
 	SetMessage(T)
 }
 
-func createSignedOrderedMessage[T orderedSignedMessage[R], R proto.Message](result T, signer *Signer, msg R, previousHash []byte, sequence uint64) (T, error) {
-	messageBytes, err := serializeMessage(msg)
+func CreateSignedOrderedMessage[T OrderedSignedMessage[R], R proto.Message](result T, signer *Signer, msg R, previousHash []byte, sequence uint64) (T, error) {
+	messageBytes, err := proto.Marshal(msg)
 	if err != nil {
 		return *new(T), fmt.Errorf("failed to serialize message: %w", err)
 	}

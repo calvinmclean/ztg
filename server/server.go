@@ -11,7 +11,6 @@ import (
 
 	"ztg/config"
 	dicepb "ztg/gen/go/dice/v1"
-	factorfightpb "ztg/gen/go/factorfight/v1"
 	gamepb "ztg/gen/go/game/v1"
 	identitypb "ztg/gen/go/identity/v1"
 	"ztg/identity"
@@ -35,6 +34,7 @@ type Server struct {
 	listener net.Listener
 	ctx      context.Context
 	cancel   context.CancelFunc
+	registry *registry
 }
 
 // gameService implements the GameService RPC defined in game.proto.
@@ -45,6 +45,7 @@ type gameService struct {
 	keyManager   *identity.KeyManager
 	serverAddr   string
 	signedMode   bool
+	registry     *registry
 }
 
 // identityService implements the IdentityService RPC defined in identity.proto.
@@ -64,9 +65,13 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.ChallengeReques
 		log.Fatalf("failed to connect: %v", err)
 	}
 
+	challenge, ok := s.registry.challenge(strings.ToLower(req.GameName))
+	if ok {
+		return challenge(ctx, conn)
+	}
+	// TODO: Remove the switch and register the HighRoll
+
 	switch strings.ToLower(req.GameName) {
-	case "factorfight":
-		return playFactorFight(ctx, conn, FactorFightConfig{}, s.keyManager, s.serverAddr, s.signedMode)
 	case "highroll":
 		return playHighRoll(ctx, conn, s.keyManager, s.serverAddr, s.signedMode)
 	default:
@@ -95,16 +100,7 @@ func (s *identityService) GetIdentity(ctx context.Context, req *emptypb.Empty) (
 }
 
 // NewServer initializes a new GRPC server.
-func NewServer(serverConfig config.ServerConfig, keyConfig config.KeyConfig, factorFightConfig FactorFightConfig) (*Server, error) {
-	keyManager, err := identity.NewKeyManager(identity.KeyConfig{
-		PrivateKeyPath: keyConfig.PrivateKeyPath,
-		ServerAddress:  keyConfig.ServerAddress,
-		ForceExample:   keyConfig.ForceExample,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize key manager: %w", err)
-	}
-
+func NewServer(serverConfig config.ServerConfig, keyManager *identity.KeyManager) (*Server, error) {
 	if err := identity.ValidateKeyUsage(keyManager.PublicKey(), os.Getenv("ENV")); err != nil {
 		return nil, err
 	}
@@ -114,18 +110,15 @@ func NewServer(serverConfig config.ServerConfig, keyConfig config.KeyConfig, fac
 		return nil, fmt.Errorf("failed to bind gRPC server on %s: %w", serverConfig.Address, err)
 	}
 
+	registry := newRegistry()
 	server := grpc.NewServer()
+	// TODO: merge gameService and Server
 	gamepb.RegisterGameServiceServer(server, &gameService{
 		serverConfig: serverConfig,
 		keyManager:   keyManager,
 		serverAddr:   serverConfig.Address,
 		signedMode:   serverConfig.Signed,
-	})
-	factorfightpb.RegisterFactorFightServiceServer(server, &factorfightService{
-		cfg:        factorFightConfig,
-		keyManager: keyManager,
-		serverAddr: serverConfig.Address,
-		signedMode: serverConfig.Signed,
+		registry:     registry,
 	})
 	dicepb.RegisterDiceServiceServer(server, &diceService{
 		keyManager: keyManager,
@@ -146,16 +139,22 @@ func NewServer(serverConfig config.ServerConfig, keyConfig config.KeyConfig, fac
 		listener: listener,
 		ctx:      ctx,
 		cancel:   cancel,
+		registry: registry,
 	}, nil
 }
 
+func (s *Server) Register(g GameService) {
+	g.Register(s.server)
+	s.registry.registerGame(g)
+}
+
 // Run starts the gRPC server.
-func (g *Server) Run() error {
-	return g.server.Serve(g.listener)
+func (s *Server) Run() error {
+	return s.server.Serve(s.listener)
 }
 
 // Stop gracefully stops the gRPC server.
-func (g *Server) Stop() {
-	g.cancel()
-	g.server.GracefulStop()
+func (s *Server) Stop() {
+	s.cancel()
+	s.server.GracefulStop()
 }

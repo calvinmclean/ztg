@@ -22,7 +22,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
-			Address:    ":8080",
+			Address:    ":50052",
 			ServerName: "ztg-server",
 			OwnerName:  "ztg-user",
 			Version:    "1.0.0",
@@ -30,7 +30,7 @@ func DefaultConfig() *Config {
 		},
 		Key: KeyConfig{
 			PrivateKeyPath: "keys/server_ed25519.pem",
-			ServerAddress:  ":8080",
+			ServerAddress:  ":50052",
 			ForceExample:   false,
 		},
 	}

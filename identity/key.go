@@ -6,13 +6,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"ztg/config"
 )
-
-type KeyConfig struct {
-	PrivateKeyPath string
-	ServerAddress  string
-	ForceExample   bool
-}
 
 type KeyManager struct {
 	privateKey ed25519.PrivateKey
@@ -20,9 +15,9 @@ type KeyManager struct {
 	isExample  bool
 }
 
-func NewKeyManager(config KeyConfig) (*KeyManager, error) {
-	if config.PrivateKeyPath != "" {
-		return loadKeyFromFile(config.PrivateKeyPath)
+func NewKeyManager(cfg config.KeyConfig) (*KeyManager, error) {
+	if cfg.PrivateKeyPath != "" {
+		return loadKeyFromFile(cfg.PrivateKeyPath)
 	}
 
 	if envPath := os.Getenv("ZTG_PRIVATE_KEY_PATH"); envPath != "" {

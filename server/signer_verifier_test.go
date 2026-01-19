@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"ztg/config"
 	"ztg/identity"
 
 	identitypb "ztg/gen/go/identity/v1"
 )
 
 func TestSigner_BasicOperations(t *testing.T) {
-	km, err := identity.NewKeyManager(identity.KeyConfig{
+	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
 	})
@@ -66,7 +67,7 @@ func TestSigner_BasicOperations(t *testing.T) {
 }
 
 func TestVerifier_VerifyMessageSignature(t *testing.T) {
-	km2, err := identity.NewKeyManager(identity.KeyConfig{
+	km2, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8081",
 	})
@@ -137,7 +138,7 @@ func TestVerifier_VerifyMessageSignature(t *testing.T) {
 }
 
 func TestVerifier_VerifyOrderedSignature(t *testing.T) {
-	km2, err := identity.NewKeyManager(identity.KeyConfig{
+	km2, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8081",
 	})
@@ -189,7 +190,7 @@ func TestVerifier_VerifyOrderedSignature(t *testing.T) {
 }
 
 func TestVerifier_AddPeerIdentity(t *testing.T) {
-	km, err := identity.NewKeyManager(identity.KeyConfig{
+	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
 	})
@@ -222,7 +223,7 @@ func TestIdentityCacheManager_Expiration(t *testing.T) {
 	// Create cache manager with very short TTL for testing
 	cache := NewIdentityCacheManager(10 * time.Millisecond)
 
-	km, err := identity.NewKeyManager(identity.KeyConfig{
+	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
 	})
@@ -252,7 +253,7 @@ func TestIdentityCacheManager_Expiration(t *testing.T) {
 func TestIdentityCacheManager_Cleanup(t *testing.T) {
 	cache := NewIdentityCacheManager(50 * time.Millisecond)
 
-	km, err := identity.NewKeyManager(identity.KeyConfig{
+	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
 	})
@@ -291,7 +292,7 @@ func TestIdentityCacheManager_Cleanup(t *testing.T) {
 }
 
 func TestVerifier_CacheManagement(t *testing.T) {
-	km, err := identity.NewKeyManager(identity.KeyConfig{
+	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
 	})
@@ -319,7 +320,7 @@ func TestVerifier_CacheManagement(t *testing.T) {
 
 func TestVerifier_AddressMismatchSecurity(t *testing.T) {
 	// Create two different key managers
-	km1, err := identity.NewKeyManager(identity.KeyConfig{
+	km1, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8081",
 	})
@@ -368,7 +369,7 @@ func TestVerifier_AddressMismatchSecurity(t *testing.T) {
 func TestIdentityCacheManager_GetWithAddressCheck(t *testing.T) {
 	cache := NewIdentityCacheManager(5 * time.Minute)
 
-	km, err := identity.NewKeyManager(identity.KeyConfig{
+	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
 	})
@@ -426,7 +427,7 @@ func TestIdentityCacheManager_GetWithAddressCheck(t *testing.T) {
 }
 
 func TestSigner_Verifier_Integration(t *testing.T) {
-	km, err := identity.NewKeyManager(identity.KeyConfig{
+	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
 	})
@@ -473,7 +474,7 @@ func TestSigner_Verifier_Integration(t *testing.T) {
 }
 
 func TestVerifier_HashChainVerification(t *testing.T) {
-	km, err := identity.NewKeyManager(identity.KeyConfig{
+	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8081",
 	})

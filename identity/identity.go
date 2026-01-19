@@ -3,6 +3,7 @@ package identity
 import (
 	"crypto/ed25519"
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -34,12 +35,7 @@ func (i *Identity) String() string {
 }
 
 func (i *Identity) HasCapability(capability string) bool {
-	for _, cap := range i.Capabilities {
-		if cap == capability {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(i.Capabilities, capability)
 }
 
 func (i *Identity) IsExpired(maxAge time.Duration) bool {

@@ -4,11 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 
 	"ztg/config"
 	"ztg/factorfight"
+	"ztg/identity"
 	"ztg/server"
+
+	ffserver "ztg/server/factorfight"
 )
 
 func main() {
@@ -26,29 +28,29 @@ func main() {
 		fmt.Println("   - Use --signed flag to enable identity verification")
 	}
 
-	addr := os.Getenv("ADDR")
+	cfg := config.DefaultConfig()
 
-	serverConfig := config.ServerConfig{
-		Address:    addr,
-		ServerName: "ztg-server",
-		OwnerName:  "ztg-user",
-		Version:    "1.0.0",
-		Signed:     *signedMode,
+	keyManager, err := identity.NewKeyManager(cfg.Key)
+	if err != nil {
+		log.Fatalf("failed to initialize key manager: %v", err)
 	}
-	keyConfig := config.KeyConfig{
-		ServerAddress: addr,
+
+	cfg.Server.Signed = *signedMode
+
+	grpcServer, err := server.NewServer(cfg.Server, keyManager)
+	if err != nil {
+		log.Fatalf("Server initialization failed: %v", err)
 	}
-	factorFightConfig := server.FactorFightConfig{
+
+	ffCfg := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
 		OnGameComplete: func(win bool, log factorfight.GameLog) {
 			fmt.Println("Win:", win)
 			fmt.Println(log)
 		},
 	}
-	grpcServer, err := server.NewServer(serverConfig, keyConfig, factorFightConfig)
-	if err != nil {
-		log.Fatalf("Server initialization failed: %v", err)
-	}
+	ffService := ffserver.NewService(ffCfg, keyManager, cfg.Server.Address, *signedMode)
+	grpcServer.Register(ffService)
 
 	grpcServer.Run()
 }

@@ -60,7 +60,7 @@ func (p *dicePeer) Send(ctx context.Context, msg dice.Message) error {
 
 	if p.signer != nil {
 		var err error
-		signedMsg, err = createSignedMessage(&dicepb.SignedMessage{}, p.signer, protoMsg)
+		signedMsg, err = CreateSignedMessage(&dicepb.SignedMessage{}, p.signer, protoMsg)
 		if err != nil {
 			return err
 		}
@@ -93,7 +93,7 @@ type diceService struct {
 
 // StreamGame handles the gRPC streaming communication.
 func (s *diceService) Roll(stream dicepb.DiceService_RollServer) error {
-	signer, verifier := createSignerVerifierPair(s.keyManager, s.serverAddr, s.signedMode)
+	signer, verifier := CreateSignerVerifierPair(s.keyManager, s.serverAddr, s.signedMode)
 
 	dicePeer := createDicePeer(stream, signer, verifier)
 
@@ -118,7 +118,7 @@ func playHighRoll(ctx context.Context, conn *grpc.ClientConn, keyManager *identi
 		return nil, err
 	}
 
-	signer, verifier := createSignerVerifierPair(keyManager, serverAddr, signedMode)
+	signer, verifier := CreateSignerVerifierPair(keyManager, serverAddr, signedMode)
 
 	dicePeer := createDicePeer(stream, signer, verifier)
 
