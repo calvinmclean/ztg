@@ -22,28 +22,51 @@ type KeyManager struct {
 }
 
 func NewKeyManager(cfg config.KeyConfig) (*KeyManager, error) {
-	if cfg.OwnerPublicKey == "" {
+	// Handle owner public key from string or file
+	var ownerPublicKeyStr string
+	switch {
+	case cfg.OwnerPublicKey != "":
+		ownerPublicKeyStr = cfg.OwnerPublicKey
+	case cfg.OwnerPublicKeyFile != "":
+		ownerKey, err := os.ReadFile(cfg.OwnerPublicKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("error reading owner public key file: %w", err)
+		}
+		ownerPublicKeyStr = string(ownerKey)
+	default:
 		fmt.Println("WARNING: Using example owner key - suitable for testing only")
 		ownerKey, err := os.ReadFile(examplePubKeyPath)
 		if err != nil {
 			return nil, fmt.Errorf("error reading example owner key: %w", err)
 		}
-
-		cfg.OwnerPublicKey = string(ownerKey)
+		ownerPublicKeyStr = string(ownerKey)
 	}
 
-	ownerKey, err := readPublicKey(cfg.OwnerPublicKey)
+	ownerKey, err := readPublicKey(ownerPublicKeyStr)
 	if err != nil {
 		return nil, fmt.Errorf("error reading owner's public key: %w", err)
 	}
 
-	if cfg.PrivateKeyPath == "" {
+	// Handle private key from string or file
+	var privKey ed25519.PrivateKey
+	var pubKey ed25519.PublicKey
+	switch {
+	case cfg.PrivateKey != "":
+		privKey, pubKey, err = loadKeyFromString(cfg.PrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("error loading private key from string: %w", err)
+		}
+	case cfg.PrivateKeyPath != "":
+		privKey, pubKey, err = loadKeyFromFile(cfg.PrivateKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("error loading private key from file: %w", err)
+		}
+	default:
 		fmt.Println("WARNING: Using example key - suitable for testing only")
-		cfg.PrivateKeyPath = exampleKeyPath
-	}
-	privKey, pubKey, err := loadKeyFromFile(cfg.PrivateKeyPath)
-	if err != nil {
-		return nil, err
+		privKey, pubKey, err = loadKeyFromFile(exampleKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("error loading example private key: %w", err)
+		}
 	}
 
 	return &KeyManager{
@@ -73,15 +96,10 @@ func readPublicKey(key string) (ed25519.PublicKey, error) {
 	return edPub, nil
 }
 
-func loadKeyFromFile(path string) (ed25519.PrivateKey, ed25519.PublicKey, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read key file: %w", err)
-	}
-
-	block, _ := pem.Decode(data)
+func loadKeyFromString(keyString string) (ed25519.PrivateKey, ed25519.PublicKey, error) {
+	block, _ := pem.Decode([]byte(keyString))
 	if block == nil {
-		return nil, nil, fmt.Errorf("failed to decode PEM block")
+		return nil, nil, fmt.Errorf("failed to decode PEM block from string")
 	}
 
 	var privateKey ed25519.PrivateKey
@@ -102,6 +120,15 @@ func loadKeyFromFile(path string) (ed25519.PrivateKey, ed25519.PublicKey, error)
 
 	publicKey := privateKey.Public().(ed25519.PublicKey)
 	return privateKey, publicKey, nil
+}
+
+func loadKeyFromFile(path string) (ed25519.PrivateKey, ed25519.PublicKey, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read key file: %w", err)
+	}
+
+	return loadKeyFromString(string(data))
 }
 
 func (km *KeyManager) PrivateKey() ed25519.PrivateKey {

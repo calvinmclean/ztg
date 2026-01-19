@@ -9,10 +9,16 @@ package config
 }
 
 #Key: {
-	owner_public_key: string | *"" // PEM format Ed25519 public key
-	private_key_path: string | *"keys/server_ed25519.pem"
-	server_address:   string | *server.address
-	force_example:    bool | *false
+	// Exactly one of owner_public_key or owner_public_key_file must be set
+	// owner_public_key:      string | *""
+	// owner_public_key_file: string | *""
+	{owner_public_key: string | *""} | {owner_public_key_file: string | *""}
+
+	// Exactly one of private_key or private_key_path must be set
+	{private_key: string | *""} | {private_key_path: string | *""}
+
+	server_address: string | *server.address
+	force_example:  bool | *false
 }
 
 server: #Server

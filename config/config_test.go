@@ -76,7 +76,9 @@ func TestLoadFromEnv(t *testing.T) {
 	t.Setenv("ZTG_SERVER_NAME", "env-server")
 	t.Setenv("ZTG_SIGNED", "true")
 	t.Setenv("ZTG_KEY_PATH", "/custom/path/key.pem")
+	t.Setenv("ZTG_PRIVATE_KEY", "test-private-key")
 	t.Setenv("ZTG_OWNER_PUBLIC_KEY", "dGVzdC1wdWJsaWMta2V5")
+	t.Setenv("ZTG_OWNER_PUBLIC_KEY_FILE", "/custom/path/pubkey.pem")
 	// Note: ZTG_STRATEGY not set - should not override existing config
 
 	cfg := DefaultConfig()
@@ -94,8 +96,14 @@ func TestLoadFromEnv(t *testing.T) {
 	if cfg.Key.PrivateKeyPath != "/custom/path/key.pem" {
 		t.Errorf("Expected key_path '/custom/path/key.pem' from env, got '%s'", cfg.Key.PrivateKeyPath)
 	}
+	if cfg.Key.PrivateKey != "test-private-key" {
+		t.Errorf("Expected private_key 'test-private-key' from env, got '%s'", cfg.Key.PrivateKey)
+	}
 	if cfg.Key.OwnerPublicKey != "dGVzdC1wdWJsaWMta2V5" {
 		t.Errorf("Expected owner_public_key 'dGVzdC1wdWJsaWMta2V5' from env, got '%s'", cfg.Key.OwnerPublicKey)
+	}
+	if cfg.Key.OwnerPublicKeyFile != "/custom/path/pubkey.pem" {
+		t.Errorf("Expected owner_public_key_file '/custom/path/pubkey.pem' from env, got '%s'", cfg.Key.OwnerPublicKeyFile)
 	}
 }
 

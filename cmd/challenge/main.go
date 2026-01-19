@@ -178,17 +178,11 @@ func createChallenge(ctx context.Context, cmd *cli.Command) error {
 	serverAddr := cmd.String("server")
 	keyPath := cmd.String("key-path")
 
-	// Load owner public key
-	ownerKey, err := os.ReadFile("keys/example_ed25519.pub.pem")
-	if err != nil {
-		return fmt.Errorf("failed to read owner public key: %w", err)
-	}
-
 	// Create key manager
 	keyConfig := config.KeyConfig{
-		ServerAddress:  serverAddr,
-		PrivateKeyPath: keyPath,
-		OwnerPublicKey: string(ownerKey),
+		ServerAddress:      serverAddr,
+		PrivateKeyPath:     keyPath,
+		OwnerPublicKeyFile: "keys/example_ed25519.pub.pem",
 	}
 
 	km, err := identity.NewKeyManager(keyConfig)

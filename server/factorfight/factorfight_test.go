@@ -2,7 +2,6 @@ package factorfight_test
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -21,20 +20,15 @@ import (
 )
 
 func TestTwoServerChallenge(t *testing.T) {
-	ownerKey, err := os.ReadFile("../../keys/example_ed25519.pub.pem")
-	if err != nil {
-		t.Fatalf("Failed to read owner key: %v", err)
-	}
-
 	keyConfig1 := config.KeyConfig{
-		ServerAddress:  "localhost:50052",
-		PrivateKeyPath: "../../keys/example_ed25519.pem",
-		OwnerPublicKey: string(ownerKey),
+		ServerAddress:      "localhost:50052",
+		PrivateKeyPath:     "../../keys/example_ed25519.pem",
+		OwnerPublicKeyFile: "../../keys/example_ed25519.pub.pem",
 	}
 	keyConfig2 := config.KeyConfig{
-		ServerAddress:  "localhost:50053",
-		PrivateKeyPath: "../../keys/example_ed25519.pem",
-		OwnerPublicKey: string(ownerKey),
+		ServerAddress:      "localhost:50053",
+		PrivateKeyPath:     "../../keys/example_ed25519.pem",
+		OwnerPublicKeyFile: "../../keys/example_ed25519.pub.pem",
 	}
 
 	km1, err := identity.NewKeyManager(keyConfig1)
@@ -169,16 +163,11 @@ func TestTwoServerChallenge(t *testing.T) {
 }
 
 func TestChallengeAuthorization(t *testing.T) {
-	ownerKey, err := os.ReadFile("../../keys/example_ed25519.pub.pem")
-	if err != nil {
-		t.Fatalf("Failed to read owner key: %v", err)
-	}
-
 	// Server config with owner public key
 	keyConfig := config.KeyConfig{
-		ServerAddress:  "localhost:50054",
-		PrivateKeyPath: "../../keys/example_ed25519.pem",
-		OwnerPublicKey: string(ownerKey),
+		ServerAddress:      "localhost:50054",
+		PrivateKeyPath:     "../../keys/example_ed25519.pem",
+		OwnerPublicKeyFile: "../../keys/example_ed25519.pub.pem",
 	}
 
 	km, err := identity.NewKeyManager(keyConfig)

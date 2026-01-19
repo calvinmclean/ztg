@@ -37,6 +37,35 @@ func TestKeyManager_LoadExampleKey(t *testing.T) {
 	}
 }
 
+func TestKeyManager_LoadKeyFromString(t *testing.T) {
+	setupTestEnv(t)
+
+	// Load key from file first to get the string representation
+	keyData, err := os.ReadFile("keys/example_ed25519.pem")
+	if err != nil {
+		t.Fatalf("Failed to read key file: %v", err)
+	}
+
+	privKey, pubKey, err := loadKeyFromString(string(keyData))
+	if err != nil {
+		t.Fatalf("Failed to load key from string: %v", err)
+	}
+
+	km := &KeyManager{privateKey: privKey, publicKey: pubKey, isExample: true}
+
+	if km.PrivateKey() == nil {
+		t.Fatal("Private key is nil")
+	}
+
+	if km.PublicKey() == nil {
+		t.Fatal("Public key is nil")
+	}
+
+	if !km.IsExample() {
+		t.Fatal("Key manager should detect example key")
+	}
+}
+
 func TestIsExampleKey(t *testing.T) {
 	setupTestEnv(t)
 

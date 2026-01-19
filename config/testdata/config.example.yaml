@@ -6,21 +6,10 @@ server:
   signed: false
 
 key:
-  owner_public_key: ""
+  owner_public_key: "key"
   private_key_path: "keys/server_ed25519.pem"
   server_address: ":8080"
   force_example: false
 
 factorfight:
   strategy: "closest"
-
-# Environment variable examples:
-# ZTG_ADDRESS=":9090"
-# ZTG_SERVER_NAME="my-server"
-# ZTG_OWNER_NAME="my-user"
-# ZTG_VERSION="2.0.0"
-# ZTG_SIGNED="true"
-# ZTG_KEY_PATH="/custom/path/key.pem"
-# ZTG_KEY_SERVER_ADDRESS=":9090"
-# ZTG_FORCE_EXAMPLE="true"
-# ZTG_STRATEGY="closest"
