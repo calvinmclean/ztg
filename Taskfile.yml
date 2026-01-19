@@ -4,14 +4,16 @@ tasks:
   dev1:
     env:
       ZTG_ADDRESS: ":50052"
+      ZTG_SIGNED: true
     cmds:
-      - go run main.go
+      - go run cmd/server/main.go
 
   dev2:
     env:
       ZTG_ADDRESS: ":50053"
+      ZTG_SIGNED: true
     cmds:
-      - go run main.go
+      - go run cmd/server/main.go
 
   highroll:
     cmds:

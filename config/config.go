@@ -32,10 +32,10 @@ func DefaultConfig() *Config {
 			Signed:     false,
 		},
 		Key: KeyConfig{
-			OwnerPublicKey:     "",                        // Set this to the base64 or hex encoded owner Ed25519 public key
-			OwnerPublicKeyFile: "",                        // Alternatively, set this to a file path containing the owner public key
-			PrivateKey:         "",                        // Set this to the PEM encoded private key string
-			PrivateKeyPath:     "keys/server_ed25519.pem", // Alternatively, set this to a file path containing the private key
+			OwnerPublicKey:     "",                         // Set this to the base64 or hex encoded owner Ed25519 public key
+			OwnerPublicKeyFile: "",                         // Alternatively, set this to a file path containing the owner public key
+			PrivateKey:         "",                         // Set this to the PEM encoded private key string
+			PrivateKeyPath:     "keys/example_ed25519.pem", // Alternatively, set this to a file path containing the private key
 			ServerAddress:      ":50052",
 			ForceExample:       false,
 		},
