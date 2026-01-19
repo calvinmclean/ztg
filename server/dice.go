@@ -76,7 +76,7 @@ func (p *dicePeer) Recv(ctx context.Context) (dice.Message, error) {
 		return dice.Message{}, err
 	}
 
-	if err := verifyMessageSignature(p.verifier, msg.Message, msg.Signature); err != nil {
+	if err := p.verifier.VerifySignatureProto(msg.Message, msg.Signature); err != nil {
 		return dice.Message{}, fmt.Errorf("signature verification failed: %w", err)
 	}
 
@@ -144,4 +144,21 @@ func playHighRoll(ctx context.Context, conn *grpc.ClientConn, keyManager *identi
 		Win:     &win,
 		Message: msg,
 	}, err
+}
+
+// createDicePeer creates a dicePeer with the specified parameters
+func createDicePeer(diceStream diceStream, signer *Signer, verifier *Verifier) *dicePeer {
+	return &dicePeer{
+		diceStream: diceStream,
+		signer:     signer,
+		verifier:   verifier,
+	}
+}
+
+// createRoller creates a dice roller with the specified peer
+func createRoller(peer dice.Peer, sides int) (dice.Roller, error) {
+	if sides <= 0 {
+		sides = DefaultDieSides
+	}
+	return dice.NewRoller(uint8(sides), peer)
 }

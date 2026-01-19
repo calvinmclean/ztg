@@ -367,7 +367,23 @@ func (v *Verifier) VerifyOrderedSignatureProto(msg proto.Message, signature *ide
 	}
 
 	return v.VerifyOrderedSignature(msgBytes, signature)
+}
 
+func (v *Verifier) VerifySignatureProto(msg proto.Message, signature *identitypb.Signature) error {
+	if v == nil {
+		return nil
+	}
+
+	if signature == nil {
+		return fmt.Errorf("message is not signed but verifier is configured")
+	}
+
+	msgBytes, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("failed to serialize message: %w", err)
+	}
+
+	return v.VerifyMessageSignature(msgBytes, signature)
 }
 
 // getPeerIdentity fetches peer identity from their gRPC service
