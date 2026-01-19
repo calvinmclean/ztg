@@ -1,0 +1,17 @@
+{
+  "server": {
+    "address": "invalid-port",
+    "server_name": "test-server",
+    "owner_name": "test-user",
+    "version": "2.0.0",
+    "signed": "not-a-boolean"
+  },
+  "key": {
+    "private_key_path": "keys/test.pem",
+    "server_address": "invalid-address",
+    "force_example": "not-boolean"
+  },
+  "factorfight": {
+    "strategy": "invalid-strategy"
+  }
+}

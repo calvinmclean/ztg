@@ -1,0 +1,17 @@
+{
+  "server": {
+    "address": ":9090",
+    "server_name": "test-server",
+    "owner_name": "test-user",
+    "version": "2.0.0",
+    "signed": true
+  },
+  "key": {
+    "private_key_path": "keys/test.pem",
+    "server_address": ":9090",
+    "force_example": true
+  },
+  "factorfight": {
+    "strategy": "closest"
+  }
+}

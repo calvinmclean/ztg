@@ -1,0 +1,17 @@
+{
+  "server": {
+    "address": ":8080",
+    "server_name": "ztg-server",
+    "owner_name": "ztg-user",
+    "version": "1.0.0",
+    "signed": false
+  },
+  "key": {
+    "private_key_path": "keys/server_ed25519.pem",
+    "server_address": ":8080",
+    "force_example": false
+  },
+  "factorfight": {
+    "strategy": "closest"
+  }
+}
