@@ -16,16 +16,12 @@ type identityService struct {
 
 	keyManager   *identity.KeyManager
 	serverConfig config.ServerConfig
+	registry     *registry
 }
 
 func (s *identityService) GetIdentity(ctx context.Context, req *emptypb.Empty) (*identitypb.Identity, error) {
 	publicKey := s.keyManager.PublicKey()
-
-	capabilities := []string{
-		"dice.roll",
-		"factorfight.play",
-		"game.challenge",
-	}
+	capabilities := s.registry.GameIDs()
 
 	return &identitypb.Identity{
 		PublicKey:     publicKey,

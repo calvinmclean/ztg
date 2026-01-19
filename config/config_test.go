@@ -9,8 +9,8 @@ import (
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
-	if cfg.Server.Address != ":8080" {
-		t.Errorf("Expected address ':8080', got '%s'", cfg.Server.Address)
+	if cfg.Server.Address != ":50052" {
+		t.Errorf("Expected address ':50052 got '%s'", cfg.Server.Address)
 	}
 	if cfg.Server.ServerName != "ztg-server" {
 		t.Errorf("Expected server_name 'ztg-server', got '%s'", cfg.Server.ServerName)

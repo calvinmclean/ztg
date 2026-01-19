@@ -1,12 +1,26 @@
 version: "3"
 
 tasks:
-  factorfight:
+  dev1:
     env:
-      ADDR: ":50052"
+      ZTG_ADDRESS: ":50052"
     cmds:
       - go run main.go
 
-  challenge:
+  dev2:
+    env:
+      ZTG_ADDRESS: ":50053"
     cmds:
-      - grpcurl -plaintext -d '{"target":"localhost:50052", "game_name":"factorfight"}' localhost:50053 game.v1.GameService/Challenge
+      - go run main.go
+
+  factorfight:
+    cmds:
+      - grpcurl -plaintext -d '{"target":"localhost:50053", "game_id":"ztg.FactorFight.v1"}' localhost:50052 game.v1.GameService/Challenge
+
+  highroll:
+    cmds:
+      - grpcurl -plaintext -d '{"target":"localhost:50053", "game_id":"ztg.HighRoll.v1"}' localhost:50052 game.v1.GameService/Challenge
+
+  identity:
+    cmds:
+      - grpcurl -plaintext -d '{}' localhost:50052 identity.v1.IdentityService/GetIdentity

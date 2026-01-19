@@ -10,8 +10,5 @@
     "private_key_path": "keys/server_ed25519.pem",
     "server_address": ":8080",
     "force_example": false
-  },
-  "factorfight": {
-    "strategy": "closest"
   }
 }

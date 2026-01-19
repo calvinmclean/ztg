@@ -55,6 +55,7 @@ func NewServer(serverConfig config.ServerConfig, keyManager *identity.KeyManager
 	identitypb.RegisterIdentityServiceServer(server, &identityService{
 		keyManager:   keyManager,
 		serverConfig: serverConfig,
+		registry:     registry,
 	})
 
 	reflection.Register(server)

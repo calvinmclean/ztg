@@ -12,6 +12,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+const GameID = "ztg.HighRoll.v1"
+
 type Service struct {
 	dicepb.UnimplementedDiceServiceServer
 	keyManager *identity.KeyManager
@@ -27,8 +29,8 @@ func NewService(keyManager *identity.KeyManager, serverAddr string, signedMode b
 	}
 }
 
-func (s *Service) Name() string {
-	return "highroll"
+func (s *Service) ID() string {
+	return GameID
 }
 
 func (s *Service) Register(server *grpc.Server) {

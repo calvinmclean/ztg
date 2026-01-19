@@ -15,6 +15,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+const GameID = "ztg.FactorFight.v1"
+
 type Config struct {
 	// Strategy controls how your implementation will choose which move to make after rolling
 	Strategy factorfight.Strategy
@@ -43,8 +45,8 @@ func NewService(cfg Config, keyManager *identity.KeyManager, serverAddr string, 
 	}
 }
 
-func (s Service) Name() string {
-	return "factorfight"
+func (s Service) ID() string {
+	return GameID
 }
 
 func (s *Service) Register(server *grpc.Server) {

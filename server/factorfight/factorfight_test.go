@@ -120,8 +120,8 @@ func TestTwoServerChallenge(t *testing.T) {
 
 	// Create challenge request (matching the Taskfile.yml command)
 	req := &gamepb.ChallengeRequest{
-		Target:   "localhost:50052",
-		GameName: "factorfight",
+		Target: "localhost:50052",
+		GameId: ffserver.GameID,
 	}
 
 	// Issue challenge request with timeout

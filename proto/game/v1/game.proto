@@ -10,7 +10,7 @@ message Empty {}
 // ChallengeRequest is used to tell your server to challenge another server
 message ChallengeRequest {
   string target = 1;
-  string game_name = 2;
+  string game_id = 2;
 }
 
 message ChallengeResponse {

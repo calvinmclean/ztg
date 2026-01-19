@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 
 	"ztg/config"
 	gamepb "ztg/gen/go/game/v1"
@@ -34,9 +33,9 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.ChallengeReques
 		log.Fatalf("failed to connect: %v", err)
 	}
 
-	challenge, ok := s.registry.challenge(strings.ToLower(req.GameName))
+	challenge, ok := s.registry.challenge(req.GameId)
 	if !ok {
-		return nil, fmt.Errorf("unknown game: %q", req.GameName)
+		return nil, fmt.Errorf("unknown game: %q %v", req.GameId, s.registry.GameIDs())
 	}
 	return challenge(ctx, conn)
 }
