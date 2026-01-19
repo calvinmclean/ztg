@@ -24,3 +24,7 @@ tasks:
   identity:
     cmds:
       - grpcurl -plaintext -d '{}' localhost:50052 identity.v1.IdentityService/GetIdentity
+
+  generate:
+    cmds:
+      - buf generate

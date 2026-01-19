@@ -4,7 +4,6 @@ package factorfight.v1;
 
 import "dice/v1/dice.proto";
 import "identity/v1/identity.proto";
-import "setters/v1/options.proto";
 
 option go_package = "ztg/gen/go/factorfight/v1";
 
@@ -29,8 +28,6 @@ message FactorFightMessage {
 }
 
 message SignedFactorFightMessage {
-  option (setters.v1.generate_setters) = true;
-
   FactorFightMessage message = 1;
   optional identity.v1.OrderedSignature signature = 2;
 }
