@@ -33,6 +33,16 @@ func (s *Signer) SignMessage(message []byte) (*identitypb.Signature, error) {
 	}, nil
 }
 
+// SignProto marshals and signs a proto message
+func (s *Signer) SignProto(msg proto.Message) (*identitypb.Signature, error) {
+	messageBytes, err := proto.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize message: %w", err)
+	}
+
+	return s.SignMessage(messageBytes)
+}
+
 // SignOrderedMessage signs a message with sequence and previous hash
 func (s *Signer) SignOrderedMessage(message []byte, previousHash []byte, sequence uint64) (*identitypb.OrderedSignature, error) {
 	signature, err := s.signer.Sign(message)
@@ -48,6 +58,16 @@ func (s *Signer) SignOrderedMessage(message []byte, previousHash []byte, sequenc
 	}, nil
 }
 
+// SignOrderedMessage signs a message with sequence and previous hash
+func (s *Signer) SignOrderedMessageProto(msg proto.Message, previousHash []byte, sequence uint64) (*identitypb.OrderedSignature, error) {
+	messageBytes, err := proto.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize message: %w", err)
+	}
+
+	return s.SignOrderedMessage(messageBytes, previousHash, sequence)
+}
+
 // Address returns the signer's address
 func (s *Signer) Address() string {
 	return s.signer.Address()
@@ -59,12 +79,7 @@ type SignedMessage[T proto.Message] interface {
 }
 
 func CreateSignedMessage[T SignedMessage[R], R proto.Message](result T, signer *Signer, msg R) (T, error) {
-	messageBytes, err := proto.Marshal(msg)
-	if err != nil {
-		return *new(T), fmt.Errorf("failed to serialize message: %w", err)
-	}
-
-	signature, err := signer.SignMessage(messageBytes)
+	signature, err := signer.SignProto(msg)
 	if err != nil {
 		return *new(T), fmt.Errorf("failed to sign message: %w", err)
 	}

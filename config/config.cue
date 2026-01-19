@@ -9,6 +9,7 @@ package config
 }
 
 #Key: {
+	owner_public_key: string | *"" // PEM format Ed25519 public key
 	private_key_path: string | *"keys/server_ed25519.pem"
 	server_address:   string | *server.address
 	force_example:    bool | *false

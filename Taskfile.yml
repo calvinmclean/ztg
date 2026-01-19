@@ -13,17 +13,17 @@ tasks:
     cmds:
       - go run main.go
 
-  factorfight:
-    cmds:
-      - grpcurl -plaintext -d '{"target":"localhost:50053", "game_id":"ztg.FactorFight.v1"}' localhost:50052 game.v1.GameService/Challenge
-
   highroll:
     cmds:
-      - grpcurl -plaintext -d '{"target":"localhost:50053", "game_id":"ztg.HighRoll.v1"}' localhost:50052 game.v1.GameService/Challenge
+      - go run cmd/challenge/main.go create --target localhost:50052 --game ztg.HighRoll.v1 --server localhost:50053
 
   identity:
     cmds:
       - grpcurl -plaintext -d '{}' localhost:50052 identity.v1.IdentityService/GetIdentity
+
+  challenge:
+    cmds:
+      - go run cmd/challenge/main.go
 
   generate:
     cmds:
@@ -32,3 +32,17 @@ tasks:
   validate_config_testdata:
     cmds:
       - cue vet config/testdata/* config/config.cue
+
+  ff1:
+    desc: send a request to dev1 server to challenge dev2 to FactorFight
+    cmds:
+      - go run cmd/challenge/main.go send --target localhost:50053 --game ztg.FactorFight.v1 --server localhost:50052
+
+  ff2:
+    desc: send a request to dev2 server to challenge dev1 to FactorFight
+    cmds:
+      - go run cmd/challenge/main.go send --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053
+
+  print_challenge:
+    cmds:
+      - go run cmd/challenge/main.go create --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053

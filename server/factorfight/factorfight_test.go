@@ -9,13 +9,15 @@ import (
 	"ztg/config"
 	"ztg/factorfight"
 	gamepb "ztg/gen/go/game/v1"
+	identitypb "ztg/gen/go/identity/v1"
 	"ztg/identity"
 	"ztg/server"
 	ffserver "ztg/server/factorfight"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/grpc/status"
 )
 
 func TestTwoServerChallenge(t *testing.T) {
@@ -135,11 +137,7 @@ func TestTwoServerChallenge(t *testing.T) {
 
 	// Signer can use either KM because they just use the same owner key
 	signer := server.NewSigner(km1, ":50052")
-	msgBytes, err := proto.Marshal(req)
-	if err != nil {
-		t.Fatalf("Failed to marshal proto message: %v", err)
-	}
-	signature, err := signer.SignMessage(msgBytes)
+	signature, err := signer.SignProto(req)
 	if err != nil {
 		t.Fatalf("Failed to sign message: %v", err)
 	}
@@ -167,5 +165,115 @@ func TestTwoServerChallenge(t *testing.T) {
 
 	if p1WinResult != nil && p2WinResult != nil && *p1WinResult == *p2WinResult {
 		t.Error("p1WinResult == p2WinResult and they should not match")
+	}
+}
+
+func TestChallengeAuthorization(t *testing.T) {
+	ownerKey, err := os.ReadFile("../../keys/example_ed25519.pub.pem")
+	if err != nil {
+		t.Fatalf("Failed to read owner key: %v", err)
+	}
+
+	// Server config with owner public key
+	keyConfig := config.KeyConfig{
+		ServerAddress:  "localhost:50054",
+		PrivateKeyPath: "../../keys/example_ed25519.pem",
+		OwnerPublicKey: string(ownerKey),
+	}
+
+	km, err := identity.NewKeyManager(keyConfig)
+	if err != nil {
+		t.Fatalf("Failed to create KeyManager: %v", err)
+	}
+
+	serverConfig := config.ServerConfig{
+		Address:    ":50054",
+		ServerName: "auth-test-server",
+		OwnerName:  "test-user",
+		Version:    "1.0.0",
+		Signed:     true, // Enable signed mode
+	}
+
+	factorFightConfig := ffserver.Config{
+		Strategy: factorfight.DefaultStrategy,
+		OnGameComplete: func(win bool, log factorfight.GameLog) {
+			t.Logf("Auth Test - Win: %v, Log: %v", win, log)
+		},
+	}
+	ffserver := ffserver.NewService(factorFightConfig, km, "localhost:50054", true)
+
+	srv, err := server.NewServer(serverConfig, km)
+	if err != nil {
+		t.Fatalf("Failed to create server: %v", err)
+	}
+	srv.Register(ffserver)
+
+	// Start server in goroutine
+	go func() {
+		if err := srv.Run(); err != nil {
+			t.Errorf("Server failed: %v", err)
+		}
+	}()
+
+	// Give server time to start
+	time.Sleep(100 * time.Millisecond)
+
+	// Cleanup function to stop server
+	defer func() {
+		srv.Stop()
+	}()
+
+	// Create client connection
+	conn, err := grpc.NewClient(
+		"localhost:50054",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatalf("Failed to connect to server: %v", err)
+	}
+	defer conn.Close()
+
+	client := gamepb.NewGameServiceClient(conn)
+
+	// Test 1: Invalid signature should fail
+	req := &gamepb.ChallengeRequest{
+		Target: "localhost:50055",
+		GameId: "ztg.FactorFight.v1",
+	}
+
+	// Create a signature with correct signer address but invalid signature content
+	signer := server.NewSigner(km, "localhost:50054")
+
+	// Get a proper signature first, then corrupt it
+	validSig, _ := signer.SignProto(req)
+
+	// Create invalid signature by corrupting the signature bytes
+	invalidSignature := &identitypb.Signature{
+		Signature:     []byte("corrupted-signature-data"),
+		SignerAddress: validSig.SignerAddress, // Use correct address
+	}
+
+	invalidSignedReq := &gamepb.SignedChallengeRequest{
+		Challenge: req,
+		Signature: invalidSignature,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := client.Challenge(ctx, invalidSignedReq)
+	if err == nil {
+		t.Error("Invalid signature challenge should fail, but it succeeded")
+		t.Logf("Response: %v", resp)
+	} else {
+		// Check for PermissionDenied status code
+		st, ok := status.FromError(err)
+		if !ok {
+			t.Errorf("Expected gRPC status error, got: %v", err)
+		} else if st.Code() != codes.PermissionDenied {
+			t.Errorf("Expected PermissionDenied status code, got %v", st.Code())
+		} else {
+			t.Logf("Invalid signature challenge correctly failed with PermissionDenied: %v", st.Message())
+		}
 	}
 }

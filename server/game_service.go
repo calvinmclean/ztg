@@ -3,14 +3,15 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"ztg/config"
 	gamepb "ztg/gen/go/game/v1"
 	"ztg/identity"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 // gameService implements the GameService RPC defined in game.proto.
@@ -31,11 +32,10 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.SignedChallenge
 
 	v := NewVerifier(0)
 	v.AddPeerIdentity("owner", s.keyManager.PublicKey())
-	v.VerifySignatureProto(req.Challenge, req.Signature)
 
 	err := v.VerifySignatureProto(req.Challenge, req.Signature)
 	if err != nil {
-		return nil, fmt.Errorf("signature verification failed: %w", err)
+		return nil, status.Error(codes.PermissionDenied, fmt.Errorf("signature verification failed: %w", err).Error())
 	}
 
 	conn, err := grpc.NewClient(
@@ -43,12 +43,12 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.SignedChallenge
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		log.Fatalf("failed to connect: %v", err)
+		return nil, status.Error(codes.FailedPrecondition, fmt.Errorf("failed to connect to target %q: %w", req.Challenge.Target, err).Error())
 	}
 
 	challenge, ok := s.registry.challenge(req.Challenge.GameId)
 	if !ok {
-		return nil, fmt.Errorf("unknown game: %q %v", req.Challenge.GameId, s.registry.GameIDs())
+		return nil, status.Error(codes.NotFound, fmt.Errorf("unknown game: %q %v", req.Challenge.GameId, s.registry.GameIDs()).Error())
 	}
 	return challenge(ctx, conn)
 }
