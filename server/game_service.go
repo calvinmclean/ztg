@@ -35,15 +35,8 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.ChallengeReques
 	}
 
 	challenge, ok := s.registry.challenge(strings.ToLower(req.GameName))
-	if ok {
-		return challenge(ctx, conn)
-	}
-	// TODO: Remove the switch and register the HighRoll
-
-	switch strings.ToLower(req.GameName) {
-	case "highroll":
-		return playHighRoll(ctx, conn, s.keyManager, s.serverAddr, s.signedMode)
-	default:
+	if !ok {
 		return nil, fmt.Errorf("unknown game: %q", req.GameName)
 	}
+	return challenge(ctx, conn)
 }

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"ztg/config"
-	dicepb "ztg/gen/go/dice/v1"
 	gamepb "ztg/gen/go/game/v1"
 	identitypb "ztg/gen/go/identity/v1"
 	"ztg/identity"
@@ -52,11 +51,6 @@ func NewServer(serverConfig config.ServerConfig, keyManager *identity.KeyManager
 		serverAddr:   serverConfig.Address,
 		signedMode:   serverConfig.Signed,
 		registry:     registry,
-	})
-	dicepb.RegisterDiceServiceServer(server, &diceService{
-		keyManager: keyManager,
-		serverAddr: serverConfig.Address,
-		signedMode: serverConfig.Signed,
 	})
 	identitypb.RegisterIdentityServiceServer(server, &identityService{
 		keyManager:   keyManager,

@@ -11,6 +11,9 @@ import (
 	"ztg/server"
 
 	ffserver "ztg/server/factorfight"
+	highrollserver "ztg/server/highroll"
+
+	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
@@ -29,6 +32,8 @@ func main() {
 	}
 
 	cfg := config.DefaultConfig()
+	_ = envconfig.Process("", cfg)
+	cfg.Key.PrivateKeyPath = "keys/example_ed25519.pem"
 
 	keyManager, err := identity.NewKeyManager(cfg.Key)
 	if err != nil {
@@ -51,6 +56,9 @@ func main() {
 	}
 	ffService := ffserver.NewService(ffCfg, keyManager, cfg.Server.Address, *signedMode)
 	grpcServer.Register(ffService)
+
+	highrollService := highrollserver.NewService(keyManager, cfg.Server.Address, *signedMode)
+	grpcServer.Register(highrollService)
 
 	grpcServer.Run()
 }
