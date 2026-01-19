@@ -4,6 +4,7 @@ go 1.25.1
 
 require (
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/urfave/cli/v3 v3.6.2
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
