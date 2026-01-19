@@ -18,7 +18,8 @@ func setupTestEnv(t *testing.T) {
 func TestKeyManager_LoadExampleKey(t *testing.T) {
 	setupTestEnv(t)
 
-	km, err := loadExampleKey()
+	privKey, pubKey, err := loadKeyFromFile("keys/example_ed25519.pem")
+	km := &KeyManager{privateKey: privKey, publicKey: pubKey, isExample: true}
 	if err != nil {
 		t.Fatalf("Failed to load example key: %v", err)
 	}
@@ -39,7 +40,8 @@ func TestKeyManager_LoadExampleKey(t *testing.T) {
 func TestIsExampleKey(t *testing.T) {
 	setupTestEnv(t)
 
-	km, err := loadExampleKey()
+	privKey, pubKey, err := loadKeyFromFile("keys/example_ed25519.pem")
+	km := &KeyManager{privateKey: privKey, publicKey: pubKey, isExample: true}
 	if err != nil {
 		t.Fatalf("Failed to load example key: %v", err)
 	}
@@ -52,7 +54,8 @@ func TestIsExampleKey(t *testing.T) {
 func TestValidateKeyUsage(t *testing.T) {
 	setupTestEnv(t)
 
-	km, err := loadExampleKey()
+	privKey, pubKey, err := loadKeyFromFile("keys/example_ed25519.pem")
+	km := &KeyManager{privateKey: privKey, publicKey: pubKey, isExample: true}
 	if err != nil {
 		t.Fatalf("Failed to load example key: %v", err)
 	}
@@ -73,7 +76,8 @@ func TestValidateKeyUsage(t *testing.T) {
 func TestSigner_BasicOperations(t *testing.T) {
 	setupTestEnv(t)
 
-	km, err := loadExampleKey()
+	privKey, pubKey, err := loadKeyFromFile("keys/example_ed25519.pem")
+	km := &KeyManager{privateKey: privKey, publicKey: pubKey, isExample: true}
 	if err != nil {
 		t.Fatalf("Failed to load example key: %v", err)
 	}
@@ -128,7 +132,8 @@ func TestHashChain_BasicOperations(t *testing.T) {
 func TestNewIdentity(t *testing.T) {
 	setupTestEnv(t)
 
-	km, err := loadExampleKey()
+	privKey, pubKey, err := loadKeyFromFile("keys/example_ed25519.pem")
+	km := &KeyManager{privateKey: privKey, publicKey: pubKey, isExample: true}
 	if err != nil {
 		t.Fatalf("Failed to load example key: %v", err)
 	}

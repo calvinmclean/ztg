@@ -21,7 +21,7 @@ import (
 type IdentityCache struct {
 	Identity  *identitypb.Identity
 	PublicKey ed25519.PublicKey
-	ExpiresAt time.Time
+	ExpiresAt *time.Time
 }
 
 // HashChainEntry represents an entry in the hash chain for verification
@@ -138,7 +138,7 @@ func (cm *IdentityCacheManager) Get(peerAddr string) (*IdentityCache, bool) {
 	}
 
 	// Check if expired
-	if time.Now().After(cached.ExpiresAt) {
+	if cached.ExpiresAt != nil && time.Now().After(*cached.ExpiresAt) {
 		// Remove expired entry
 		cm.mutex.RUnlock()
 		cm.mutex.Lock()
@@ -177,10 +177,16 @@ func (cm *IdentityCacheManager) Set(peerAddr string, identity *identitypb.Identi
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
 
+	var expires *time.Time
+	if cm.ttl > 0 {
+		e := time.Now().Add(cm.ttl)
+		expires = &e
+	}
+
 	cm.cache[peerAddr] = &IdentityCache{
 		Identity:  identity,
 		PublicKey: identity.PublicKey,
-		ExpiresAt: time.Now().Add(cm.ttl),
+		ExpiresAt: expires,
 	}
 }
 
@@ -189,9 +195,15 @@ func (cm *IdentityCacheManager) SetPublicKey(peerAddr string, publicKey ed25519.
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
 
+	var expires *time.Time
+	if cm.ttl > 0 {
+		e := time.Now().Add(cm.ttl)
+		expires = &e
+	}
+
 	cm.cache[peerAddr] = &IdentityCache{
 		PublicKey: publicKey,
-		ExpiresAt: time.Now().Add(cm.ttl),
+		ExpiresAt: expires,
 	}
 }
 
@@ -218,7 +230,7 @@ func (cm *IdentityCacheManager) Cleanup() {
 
 	now := time.Now()
 	for addr, cached := range cm.cache {
-		if now.After(cached.ExpiresAt) {
+		if cached.ExpiresAt != nil && now.After(*cached.ExpiresAt) {
 			delete(cm.cache, addr)
 		}
 	}

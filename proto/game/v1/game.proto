@@ -2,15 +2,22 @@ syntax = "proto3";
 
 package game.v1;
 
+// ChallengeRequest is used to tell your server to challenge another server
+import "identity/v1/identity.proto";
+
 option go_package = "ztg/gen/go/game/v1";
 
 // A generic empty response message.
 message Empty {}
 
-// ChallengeRequest is used to tell your server to challenge another server
 message ChallengeRequest {
   string target = 1;
   string game_id = 2;
+}
+
+message SignedChallengeRequest {
+  ChallengeRequest challenge = 1;
+  optional identity.v1.Signature signature = 2; // Owner must sign the Challenge message using OrderedSignature (see FactorFight precedent)
 }
 
 message ChallengeResponse {
@@ -20,5 +27,5 @@ message ChallengeResponse {
 
 // GameService defines gRPC services for game initiation.
 service GameService {
-  rpc Challenge(ChallengeRequest) returns (ChallengeResponse);
+  rpc Challenge(SignedChallengeRequest) returns (ChallengeResponse);
 }

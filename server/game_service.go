@@ -24,18 +24,31 @@ type gameService struct {
 	registry     *registry
 }
 
-func (s *gameService) Challenge(ctx context.Context, req *gamepb.ChallengeRequest) (*gamepb.ChallengeResponse, error) {
+func (s *gameService) Challenge(ctx context.Context, req *gamepb.SignedChallengeRequest) (*gamepb.ChallengeResponse, error) {
+	if req.Signature == nil || len(req.Signature.Signature) == 0 {
+		return nil, fmt.Errorf("owner signature required for Challenge")
+	}
+
+	v := NewVerifier(0)
+	v.AddPeerIdentity("owner", s.keyManager.PublicKey())
+	v.VerifySignatureProto(req.Challenge, req.Signature)
+
+	err := v.VerifySignatureProto(req.Challenge, req.Signature)
+	if err != nil {
+		return nil, fmt.Errorf("signature verification failed: %w", err)
+	}
+
 	conn, err := grpc.NewClient(
-		req.Target,
+		req.Challenge.Target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		log.Fatalf("failed to connect: %v", err)
 	}
 
-	challenge, ok := s.registry.challenge(req.GameId)
+	challenge, ok := s.registry.challenge(req.Challenge.GameId)
 	if !ok {
-		return nil, fmt.Errorf("unknown game: %q %v", req.GameId, s.registry.GameIDs())
+		return nil, fmt.Errorf("unknown game: %q %v", req.Challenge.GameId, s.registry.GameIDs())
 	}
 	return challenge(ctx, conn)
 }

@@ -9,77 +9,99 @@ import (
 	"ztg/config"
 )
 
+const (
+	exampleKeyPath    = "keys/example_ed25519.pem"
+	examplePubKeyPath = "keys/example_ed25519.pub.pem"
+)
+
 type KeyManager struct {
-	privateKey ed25519.PrivateKey
-	publicKey  ed25519.PublicKey
-	isExample  bool
+	ownerPublicKey ed25519.PublicKey
+	privateKey     ed25519.PrivateKey
+	publicKey      ed25519.PublicKey
+	isExample      bool
 }
 
 func NewKeyManager(cfg config.KeyConfig) (*KeyManager, error) {
-	if cfg.PrivateKeyPath != "" {
-		return loadKeyFromFile(cfg.PrivateKeyPath)
+	if cfg.OwnerPublicKey == "" {
+		fmt.Println("WARNING: Using example owner key - suitable for testing only")
+		ownerKey, err := os.ReadFile(examplePubKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("error reading example owner key: %w", err)
+		}
+
+		cfg.OwnerPublicKey = string(ownerKey)
 	}
 
-	if envPath := os.Getenv("ZTG_PRIVATE_KEY_PATH"); envPath != "" {
-		return loadKeyFromFile(envPath)
+	ownerKey, err := readPublicKey(cfg.OwnerPublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("error reading owner's public key: %w", err)
 	}
 
-	if _, err := os.Stat("keys/server_ed25519.pem"); err == nil {
-		return loadKeyFromFile("keys/server_ed25519.pem")
+	if cfg.PrivateKeyPath == "" {
+		fmt.Println("WARNING: Using example key - suitable for testing only")
+		cfg.PrivateKeyPath = exampleKeyPath
+	}
+	privKey, pubKey, err := loadKeyFromFile(cfg.PrivateKeyPath)
+	if err != nil {
+		return nil, err
 	}
 
-	return loadExampleKey()
+	return &KeyManager{
+		ownerPublicKey: ownerKey,
+		privateKey:     privKey,
+		publicKey:      pubKey,
+		isExample:      isExampleKey(pubKey),
+	}, nil
 }
 
-func loadKeyFromFile(path string) (*KeyManager, error) {
+func readPublicKey(key string) (ed25519.PublicKey, error) {
+	block, _ := pem.Decode([]byte(key))
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM")
+	}
+
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	edPub, ok := pub.(ed25519.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("not an Ed25519 public key")
+	}
+
+	return edPub, nil
+}
+
+func loadKeyFromFile(path string) (ed25519.PrivateKey, ed25519.PublicKey, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read key file: %w", err)
+		return nil, nil, fmt.Errorf("failed to read key file: %w", err)
 	}
 
 	block, _ := pem.Decode(data)
 	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block")
+		return nil, nil, fmt.Errorf("failed to decode PEM block")
 	}
 
 	var privateKey ed25519.PrivateKey
 	if block.Type == "PRIVATE KEY" || block.Type == "ED25519 PRIVATE KEY" {
 		keyInterface, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse Ed25519 private key: %w", err)
+			return nil, nil, fmt.Errorf("failed to parse Ed25519 private key: %w", err)
 		}
 
 		var ok bool
 		privateKey, ok = keyInterface.(ed25519.PrivateKey)
 		if !ok {
-			return nil, fmt.Errorf("key is not Ed25519 private key")
+			return nil, nil, fmt.Errorf("key is not Ed25519 private key")
 		}
 	} else {
-		return nil, fmt.Errorf("unsupported key type: %s", block.Type)
+		return nil, nil, fmt.Errorf("unsupported key type: %s", block.Type)
 	}
 
-	keyInterface, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse Ed25519 private key: %w", err)
-	}
-
-	privateKey, ok := keyInterface.(ed25519.PrivateKey)
-	if !ok {
-		return nil, fmt.Errorf("key is not Ed25519 private key")
-	}
-
-	publicKey := privateKey.Public()
-
-	return &KeyManager{
-		privateKey: privateKey,
-		publicKey:  publicKey.(ed25519.PublicKey),
-		isExample:  isExampleKey(publicKey.(ed25519.PublicKey)),
-	}, nil
-}
-
-func loadExampleKey() (*KeyManager, error) {
-	fmt.Println("WARNING: Using example key - suitable for testing only")
-	return loadKeyFromFile("keys/example_ed25519.pem")
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	return privateKey, publicKey, nil
 }
 
 func (km *KeyManager) PrivateKey() ed25519.PrivateKey {
@@ -88,6 +110,10 @@ func (km *KeyManager) PrivateKey() ed25519.PrivateKey {
 
 func (km *KeyManager) PublicKey() ed25519.PublicKey {
 	return km.publicKey
+}
+
+func (km *KeyManager) OwnerPublicKey() ed25519.PublicKey {
+	return km.ownerPublicKey
 }
 
 func (km *KeyManager) IsExample() bool {

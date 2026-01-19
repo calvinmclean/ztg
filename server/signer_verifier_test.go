@@ -3,6 +3,8 @@ package server
 import (
 	"crypto/ed25519"
 	"crypto/sha256"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -12,10 +14,22 @@ import (
 	identitypb "ztg/gen/go/identity/v1"
 )
 
+var ownerKey string
+
+func init() {
+	ownerKeyData, err := os.ReadFile("../keys/example_ed25519.pub.pem")
+	if err != nil {
+		panic(fmt.Errorf("error reading example owner key: %w", err))
+	}
+
+	ownerKey = string(ownerKeyData)
+}
+
 func TestSigner_BasicOperations(t *testing.T) {
 	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
+		OwnerPublicKey: ownerKey,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create key manager: %v", err)
@@ -70,6 +84,7 @@ func TestVerifier_VerifyMessageSignature(t *testing.T) {
 	km2, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8081",
+		OwnerPublicKey: ownerKey,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create key manager 2: %v", err)
@@ -141,6 +156,7 @@ func TestVerifier_VerifyOrderedSignature(t *testing.T) {
 	km2, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8081",
+		OwnerPublicKey: ownerKey,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create key manager 2: %v", err)
@@ -193,6 +209,7 @@ func TestVerifier_AddPeerIdentity(t *testing.T) {
 	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
+		OwnerPublicKey: ownerKey,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create key manager: %v", err)
@@ -226,6 +243,7 @@ func TestIdentityCacheManager_Expiration(t *testing.T) {
 	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
+		OwnerPublicKey: ownerKey,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create key manager: %v", err)
@@ -256,6 +274,7 @@ func TestIdentityCacheManager_Cleanup(t *testing.T) {
 	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
+		OwnerPublicKey: ownerKey,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create key manager: %v", err)
@@ -295,6 +314,7 @@ func TestVerifier_CacheManagement(t *testing.T) {
 	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
+		OwnerPublicKey: ownerKey,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create key manager: %v", err)
@@ -323,6 +343,7 @@ func TestVerifier_AddressMismatchSecurity(t *testing.T) {
 	km1, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8081",
+		OwnerPublicKey: ownerKey,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create key manager 1: %v", err)
@@ -372,6 +393,7 @@ func TestIdentityCacheManager_GetWithAddressCheck(t *testing.T) {
 	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
+		OwnerPublicKey: ownerKey,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create key manager: %v", err)
@@ -430,6 +452,7 @@ func TestSigner_Verifier_Integration(t *testing.T) {
 	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8080",
+		OwnerPublicKey: ownerKey,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create key manager: %v", err)
@@ -477,6 +500,7 @@ func TestVerifier_HashChainVerification(t *testing.T) {
 	km, err := identity.NewKeyManager(config.KeyConfig{
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 		ServerAddress:  "localhost:8081",
+		OwnerPublicKey: ownerKey,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create key manager: %v", err)

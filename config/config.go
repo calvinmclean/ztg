@@ -9,6 +9,7 @@ type ServerConfig struct {
 }
 
 type KeyConfig struct {
+	OwnerPublicKey string `json:"owner_public_key" envconfig:"ZTG_OWNER_PUBLIC_KEY"`
 	PrivateKeyPath string `json:"private_key_path" envconfig:"ZTG_KEY_PATH"`
 	ServerAddress  string `json:"server_address" envconfig:"ZTG_KEY_SERVER_ADDRESS"`
 	ForceExample   bool   `json:"force_example" envconfig:"ZTG_FORCE_EXAMPLE"`
@@ -29,6 +30,7 @@ func DefaultConfig() *Config {
 			Signed:     false,
 		},
 		Key: KeyConfig{
+			OwnerPublicKey: "", // Set this to the base64 or hex encoded owner Ed25519 public key
 			PrivateKeyPath: "keys/server_ed25519.pem",
 			ServerAddress:  ":50052",
 			ForceExample:   false,

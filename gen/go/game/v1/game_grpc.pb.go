@@ -28,7 +28,7 @@ const (
 //
 // GameService defines gRPC services for game initiation.
 type GameServiceClient interface {
-	Challenge(ctx context.Context, in *ChallengeRequest, opts ...grpc.CallOption) (*ChallengeResponse, error)
+	Challenge(ctx context.Context, in *SignedChallengeRequest, opts ...grpc.CallOption) (*ChallengeResponse, error)
 }
 
 type gameServiceClient struct {
@@ -39,7 +39,7 @@ func NewGameServiceClient(cc grpc.ClientConnInterface) GameServiceClient {
 	return &gameServiceClient{cc}
 }
 
-func (c *gameServiceClient) Challenge(ctx context.Context, in *ChallengeRequest, opts ...grpc.CallOption) (*ChallengeResponse, error) {
+func (c *gameServiceClient) Challenge(ctx context.Context, in *SignedChallengeRequest, opts ...grpc.CallOption) (*ChallengeResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ChallengeResponse)
 	err := c.cc.Invoke(ctx, GameService_Challenge_FullMethodName, in, out, cOpts...)
@@ -55,7 +55,7 @@ func (c *gameServiceClient) Challenge(ctx context.Context, in *ChallengeRequest,
 //
 // GameService defines gRPC services for game initiation.
 type GameServiceServer interface {
-	Challenge(context.Context, *ChallengeRequest) (*ChallengeResponse, error)
+	Challenge(context.Context, *SignedChallengeRequest) (*ChallengeResponse, error)
 	mustEmbedUnimplementedGameServiceServer()
 }
 
@@ -66,7 +66,7 @@ type GameServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedGameServiceServer struct{}
 
-func (UnimplementedGameServiceServer) Challenge(context.Context, *ChallengeRequest) (*ChallengeResponse, error) {
+func (UnimplementedGameServiceServer) Challenge(context.Context, *SignedChallengeRequest) (*ChallengeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Challenge not implemented")
 }
 func (UnimplementedGameServiceServer) mustEmbedUnimplementedGameServiceServer() {}
@@ -91,7 +91,7 @@ func RegisterGameServiceServer(s grpc.ServiceRegistrar, srv GameServiceServer) {
 }
 
 func _GameService_Challenge_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ChallengeRequest)
+	in := new(SignedChallengeRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func _GameService_Challenge_Handler(srv interface{}, ctx context.Context, dec fu
 		FullMethod: GameService_Challenge_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GameServiceServer).Challenge(ctx, req.(*ChallengeRequest))
+		return srv.(GameServiceServer).Challenge(ctx, req.(*SignedChallengeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
