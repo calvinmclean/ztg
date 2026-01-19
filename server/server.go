@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"ztg/config"
 	dicepb "ztg/gen/go/dice/v1"
 	factorfightpb "ztg/gen/go/factorfight/v1"
 	gamepb "ztg/gen/go/game/v1"
@@ -36,34 +37,22 @@ type Server struct {
 	cancel   context.CancelFunc
 }
 
-// Config holds configuration for initializing a gRPC server.
-type Config struct {
-	Addr       string
-	ServerName string
-	OwnerName  string
-	Version    string
-	SignedMode bool
-
-	KeyConfig   identity.KeyConfig
-	FactorFight FactorFightConfig
-}
-
 // gameService implements the GameService RPC defined in game.proto.
 type gameService struct {
 	gamepb.UnimplementedGameServiceServer
 
-	cfg        Config
-	keyManager *identity.KeyManager
-	serverAddr string
-	signedMode bool
+	serverConfig config.ServerConfig
+	keyManager   *identity.KeyManager
+	serverAddr   string
+	signedMode   bool
 }
 
 // identityService implements the IdentityService RPC defined in identity.proto.
 type identityService struct {
 	identitypb.UnimplementedIdentityServiceServer
 
-	keyManager *identity.KeyManager
-	config     Config
+	keyManager   *identity.KeyManager
+	serverConfig config.ServerConfig
 }
 
 func (s *gameService) Challenge(ctx context.Context, req *gamepb.ChallengeRequest) (*gamepb.ChallengeResponse, error) {
@@ -77,7 +66,7 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.ChallengeReques
 
 	switch strings.ToLower(req.GameName) {
 	case "factorfight":
-		return playFactorFight(ctx, conn, s.cfg.FactorFight, s.keyManager, s.serverAddr, s.signedMode)
+		return playFactorFight(ctx, conn, FactorFightConfig{}, s.keyManager, s.serverAddr, s.signedMode)
 	case "highroll":
 		return playHighRoll(ctx, conn, s.keyManager, s.serverAddr, s.signedMode)
 	default:
@@ -96,18 +85,22 @@ func (s *identityService) GetIdentity(ctx context.Context, req *emptypb.Empty) (
 
 	return &identitypb.Identity{
 		PublicKey:     publicKey,
-		ServerAddress: s.config.Addr,
-		ServerName:    s.config.ServerName,
-		OwnerName:     s.config.OwnerName,
-		Version:       s.config.Version,
+		ServerAddress: s.serverConfig.Address,
+		ServerName:    s.serverConfig.ServerName,
+		OwnerName:     s.serverConfig.OwnerName,
+		Version:       s.serverConfig.Version,
 		Capabilities:  capabilities,
 		CreatedAt:     0,
 	}, nil
 }
 
 // NewServer initializes a new GRPC server.
-func NewServer(cfg Config) (*Server, error) {
-	keyManager, err := identity.NewKeyManager(cfg.KeyConfig)
+func NewServer(serverConfig config.ServerConfig, keyConfig config.KeyConfig, factorFightConfig FactorFightConfig) (*Server, error) {
+	keyManager, err := identity.NewKeyManager(identity.KeyConfig{
+		PrivateKeyPath: keyConfig.PrivateKeyPath,
+		ServerAddress:  keyConfig.ServerAddress,
+		ForceExample:   keyConfig.ForceExample,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize key manager: %w", err)
 	}
@@ -116,32 +109,32 @@ func NewServer(cfg Config) (*Server, error) {
 		return nil, err
 	}
 
-	listener, err := net.Listen("tcp", cfg.Addr)
+	listener, err := net.Listen("tcp", serverConfig.Address)
 	if err != nil {
-		return nil, fmt.Errorf("failed to bind gRPC server on %s: %w", cfg.Addr, err)
+		return nil, fmt.Errorf("failed to bind gRPC server on %s: %w", serverConfig.Address, err)
 	}
 
 	server := grpc.NewServer()
 	gamepb.RegisterGameServiceServer(server, &gameService{
-		cfg:        cfg,
-		keyManager: keyManager,
-		serverAddr: cfg.Addr,
-		signedMode: cfg.SignedMode,
+		serverConfig: serverConfig,
+		keyManager:   keyManager,
+		serverAddr:   serverConfig.Address,
+		signedMode:   serverConfig.Signed,
 	})
 	factorfightpb.RegisterFactorFightServiceServer(server, &factorfightService{
-		cfg:        cfg.FactorFight,
+		cfg:        factorFightConfig,
 		keyManager: keyManager,
-		serverAddr: cfg.Addr,
-		signedMode: cfg.SignedMode,
+		serverAddr: serverConfig.Address,
+		signedMode: serverConfig.Signed,
 	})
 	dicepb.RegisterDiceServiceServer(server, &diceService{
 		keyManager: keyManager,
-		serverAddr: cfg.Addr,
-		signedMode: cfg.SignedMode,
+		serverAddr: serverConfig.Address,
+		signedMode: serverConfig.Signed,
 	})
 	identitypb.RegisterIdentityServiceServer(server, &identityService{
-		keyManager: keyManager,
-		config:     cfg,
+		keyManager:   keyManager,
+		serverConfig: serverConfig,
 	})
 
 	reflection.Register(server)

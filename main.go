@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
+	"ztg/config"
 	"ztg/factorfight"
-	"ztg/identity"
 	"ztg/server"
 )
 
@@ -28,24 +28,24 @@ func main() {
 
 	addr := os.Getenv("ADDR")
 
-	cfg := server.Config{
-		Addr:       addr,
+	serverConfig := config.ServerConfig{
+		Address:    addr,
 		ServerName: "ztg-server",
 		OwnerName:  "ztg-user",
 		Version:    "1.0.0",
-		SignedMode: *signedMode,
-		KeyConfig: identity.KeyConfig{
-			ServerAddress: addr,
-		},
-		FactorFight: server.FactorFightConfig{
-			Strategy: factorfight.DefaultStrategy,
-			OnGameComplete: func(win bool, log factorfight.GameLog) {
-				fmt.Println("Win:", win)
-				fmt.Println(log)
-			},
+		Signed:     *signedMode,
+	}
+	keyConfig := config.KeyConfig{
+		ServerAddress: addr,
+	}
+	factorFightConfig := server.FactorFightConfig{
+		Strategy: factorfight.DefaultStrategy,
+		OnGameComplete: func(win bool, log factorfight.GameLog) {
+			fmt.Println("Win:", win)
+			fmt.Println(log)
 		},
 	}
-	grpcServer, err := server.NewServer(cfg)
+	grpcServer, err := server.NewServer(serverConfig, keyConfig, factorFightConfig)
 	if err != nil {
 		log.Fatalf("Server initialization failed: %v", err)
 	}

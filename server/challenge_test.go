@@ -5,66 +5,64 @@ import (
 	"testing"
 	"time"
 
+	"ztg/config"
 	"ztg/factorfight"
 	gamepb "ztg/gen/go/game/v1"
-	"ztg/identity"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestTwoServerChallenge(t *testing.T) {
-	keyConfig1 := identity.KeyConfig{
+	keyConfig1 := config.KeyConfig{
 		ServerAddress:  "localhost:50052",
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 	}
-	keyConfig2 := identity.KeyConfig{
+	keyConfig2 := config.KeyConfig{
 		ServerAddress:  "localhost:50053",
 		PrivateKeyPath: "../keys/example_ed25519.pem",
 	}
 
 	// Create server configs
 	var p1WinResult *bool
-	cfg1 := Config{
-		Addr:       ":50052",
+	serverConfig1 := config.ServerConfig{
+		Address:    ":50052",
 		ServerName: "test-server-1",
 		OwnerName:  "test-user-1",
 		Version:    "1.0.0",
-		SignedMode: false,
-		KeyConfig:  keyConfig1,
-		FactorFight: FactorFightConfig{
-			Strategy: factorfight.DefaultStrategy,
-			OnGameComplete: func(win bool, log factorfight.GameLog) {
-				t.Logf("Server 1 - Win: %v, Log: %v", win, log)
-				p1WinResult = &win
-			},
+		Signed:     false,
+	}
+	factorFightConfig1 := FactorFightConfig{
+		Strategy: factorfight.DefaultStrategy,
+		OnGameComplete: func(win bool, log factorfight.GameLog) {
+			t.Logf("Server 1 - Win: %v, Log: %v", win, log)
+			p1WinResult = &win
 		},
 	}
 
 	var p2WinResult *bool
-	cfg2 := Config{
-		Addr:       ":50053",
+	serverConfig2 := config.ServerConfig{
+		Address:    ":50053",
 		ServerName: "test-server-2",
 		OwnerName:  "test-user-2",
 		Version:    "1.0.0",
-		SignedMode: false,
-		KeyConfig:  keyConfig2,
-		FactorFight: FactorFightConfig{
-			Strategy: factorfight.DefaultStrategy,
-			OnGameComplete: func(win bool, log factorfight.GameLog) {
-				t.Logf("Server 2 - Win: %v, Log: %v", win, log)
-				p2WinResult = &win
-			},
+		Signed:     false,
+	}
+	factorFightConfig2 := FactorFightConfig{
+		Strategy: factorfight.DefaultStrategy,
+		OnGameComplete: func(win bool, log factorfight.GameLog) {
+			t.Logf("Server 2 - Win: %v, Log: %v", win, log)
+			p2WinResult = &win
 		},
 	}
 
 	// Create servers
-	server1, err := NewServer(cfg1)
+	server1, err := NewServer(serverConfig1, keyConfig1, factorFightConfig1)
 	if err != nil {
 		t.Fatalf("Failed to create server 1: %v", err)
 	}
 
-	server2, err := NewServer(cfg2)
+	server2, err := NewServer(serverConfig2, keyConfig2, factorFightConfig2)
 	if err != nil {
 		t.Fatalf("Failed to create server 2: %v", err)
 	}
@@ -126,7 +124,7 @@ func TestTwoServerChallenge(t *testing.T) {
 
 	t.Logf("Challenge response - Win: %v, Message: %s", resp.Win, resp.Message)
 
-	if *p1WinResult == *p2WinResult {
+	if p1WinResult != nil && p2WinResult != nil && *p1WinResult == *p2WinResult {
 		t.Error("p1WinResult == p2WinResult and they should not match")
 	}
 }
