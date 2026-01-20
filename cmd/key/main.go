@@ -1,4 +1,4 @@
-package main
+package key
 
 import (
 	"context"
@@ -13,34 +13,27 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func main() {
-	app := &cli.Command{
-		Name:  "key",
-		Usage: "Key management CLI",
-		Commands: []*cli.Command{
-			{
-				Name:  "generate",
-				Usage: "Generate a new ED25519 key pair",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:     "output",
-						Aliases:  []string{"o"},
-						Required: true,
-						Usage:    "Output path for generated key",
-					},
-				},
-				Action: func(ctx context.Context, cmd *cli.Command) error {
-					outputPath := cmd.String("output")
-					return generateKeyPair(outputPath)
+var Command = &cli.Command{
+	Name:  "key",
+	Usage: "Key management CLI",
+	Commands: []*cli.Command{
+		{
+			Name:  "generate",
+			Usage: "Generate a new ED25519 key pair",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "output",
+					Aliases:  []string{"o"},
+					Required: true,
+					Usage:    "Output path for generated key",
 				},
 			},
+			Action: func(ctx context.Context, cmd *cli.Command) error {
+				outputPath := cmd.String("output")
+				return generateKeyPair(outputPath)
+			},
 		},
-	}
-
-	if err := app.Run(context.Background(), os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
+	},
 }
 
 func generateKeyPair(outputPath string) error {
@@ -87,4 +80,10 @@ func generateKeyPair(outputPath string) error {
 	fmt.Printf("Public key:  %s\n", publicKeyPath)
 
 	return nil
+}
+
+func main() {
+	if err := Command.Run(context.Background(), os.Args); err != nil {
+		os.Exit(1)
+	}
 }

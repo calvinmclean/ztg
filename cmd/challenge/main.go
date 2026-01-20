@@ -1,4 +1,4 @@
-package main
+package challenge
 
 import (
 	"context"
@@ -17,89 +17,82 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func main() {
-	app := &cli.Command{
-		Name:  "challenge",
-		Usage: "Create, sign, and send a challenge message",
-		Commands: []*cli.Command{
-			{
-				Name:  "send",
-				Usage: "Send a signed challenge to a server",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:     "target",
-						Aliases:  []string{"t"},
-						Required: true,
-						Usage:    "Target server address (e.g., localhost:50052)",
-					},
-					&cli.StringFlag{
-						Name:     "game",
-						Aliases:  []string{"g"},
-						Required: true,
-						Usage:    "Game ID (e.g., ztg.FactorFight.v1, ztg.HighRoll.v1)",
-					},
-					&cli.StringFlag{
-						Name:     "server",
-						Aliases:  []string{"s"},
-						Required: true,
-						Usage:    "This server address (for signing)",
-					},
-					&cli.StringFlag{
-						Name:     "key-path",
-						Aliases:  []string{"k"},
-						Required: false,
-						Usage:    "Private key path (defaults to keys/example_ed25519.pem)",
-						Value:    "keys/example_ed25519.pem",
-					},
-					&cli.IntFlag{
-						Name:     "timeout",
-						Aliases:  []string{"T"},
-						Required: false,
-						Usage:    "Request timeout in seconds",
-						Value:    30,
-					},
+var Command = &cli.Command{
+	Name:  "challenge",
+	Usage: "Create, sign, and send a challenge message",
+	Commands: []*cli.Command{
+		{
+			Name:  "send",
+			Usage: "Send a signed challenge to a server",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "target",
+					Aliases:  []string{"t"},
+					Required: true,
+					Usage:    "Target server address (e.g., localhost:50052)",
 				},
-				Action: sendChallenge,
-			},
-			{
-				Name:  "create",
-				Usage: "Create a signed challenge message (print to stdout)",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:     "target",
-						Aliases:  []string{"t"},
-						Required: true,
-						Usage:    "Target server address (e.g., localhost:50052)",
-					},
-					&cli.StringFlag{
-						Name:     "game",
-						Aliases:  []string{"g"},
-						Required: true,
-						Usage:    "Game ID (e.g., ztg.FactorFight.v1, ztg.HighRoll.v1)",
-					},
-					&cli.StringFlag{
-						Name:     "server",
-						Aliases:  []string{"s"},
-						Required: true,
-						Usage:    "This server address (for signing)",
-					},
-					&cli.StringFlag{
-						Name:     "key-path",
-						Aliases:  []string{"k"},
-						Required: false,
-						Usage:    "Private key path (defaults to keys/example_ed25519.pem)",
-						Value:    "keys/example_ed25519.pem",
-					},
+				&cli.StringFlag{
+					Name:     "game",
+					Aliases:  []string{"g"},
+					Required: true,
+					Usage:    "Game ID (e.g., ztg.FactorFight.v1, ztg.HighRoll.v1)",
 				},
-				Action: createChallenge,
+				&cli.StringFlag{
+					Name:     "server",
+					Aliases:  []string{"s"},
+					Required: true,
+					Usage:    "This server address (for signing)",
+				},
+				&cli.StringFlag{
+					Name:     "key-path",
+					Aliases:  []string{"k"},
+					Required: false,
+					Usage:    "Private key path (defaults to keys/example_ed25519.pem)",
+					Value:    "keys/example_ed25519.pem",
+				},
+				&cli.IntFlag{
+					Name:     "timeout",
+					Aliases:  []string{"T"},
+					Required: false,
+					Usage:    "Request timeout in seconds",
+					Value:    30,
+				},
 			},
+			Action: sendChallenge,
 		},
-	}
-
-	if err := app.Run(context.Background(), os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
+		{
+			Name:  "create",
+			Usage: "Create a signed challenge message (print to stdout)",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "target",
+					Aliases:  []string{"t"},
+					Required: true,
+					Usage:    "Target server address (e.g., localhost:50052)",
+				},
+				&cli.StringFlag{
+					Name:     "game",
+					Aliases:  []string{"g"},
+					Required: true,
+					Usage:    "Game ID (e.g., ztg.FactorFight.v1, ztg.HighRoll.v1)",
+				},
+				&cli.StringFlag{
+					Name:     "server",
+					Aliases:  []string{"s"},
+					Required: true,
+					Usage:    "This server address (for signing)",
+				},
+				&cli.StringFlag{
+					Name:     "key-path",
+					Aliases:  []string{"k"},
+					Required: false,
+					Usage:    "Private key path (defaults to keys/example_ed25519.pem)",
+					Value:    "keys/example_ed25519.pem",
+				},
+			},
+			Action: createChallenge,
+		},
+	},
 }
 
 func sendChallenge(ctx context.Context, cmd *cli.Command) error {
@@ -217,4 +210,10 @@ func createChallenge(ctx context.Context, cmd *cli.Command) error {
 	fmt.Printf("  Signature.Signature: %s\n", hex.EncodeToString(signedReq.Signature.Signature))
 
 	return nil
+}
+
+func main() {
+	if err := Command.Run(context.Background(), os.Args); err != nil {
+		os.Exit(1)
+	}
 }
