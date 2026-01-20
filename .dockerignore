@@ -1,0 +1,42 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Testing
+*.test
+coverage.out
+
+# Local development
+keys/
+*.pem*
+.keys/
+
+# Docker
+Dockerfile*
+.dockerignore
+
+# Temporary files
+tmp/
+temp/
+
+# Build artifacts
+bin/
+dist/

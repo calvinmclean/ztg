@@ -48,3 +48,8 @@ tasks:
   print_challenge:
     cmds:
       - go run cmd/challenge/main.go create --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053
+
+  docker-build:
+    desc: Build Docker image for ztg CLI
+    cmds:
+      - docker build -t ztg:latest .
