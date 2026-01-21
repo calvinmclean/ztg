@@ -35,7 +35,7 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.SignedChallenge
 	}
 
 	v := NewVerifier(0)
-	v.AddPeerIdentity("owner", s.keyManager.PublicKey())
+	v.AddPeerIdentity("owner", s.keyManager.OwnerPublicKey())
 
 	err := v.VerifySignatureProto(req.Challenge, req.Signature)
 	if err != nil {
