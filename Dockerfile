@@ -15,4 +15,4 @@ COPY --from=builder /app/ztg /usr/local/bin/ztg
 RUN chown -R ztg:ztg /usr/local/bin/ztg
 USER ztg
 ENTRYPOINT ["ztg"]
-CMD ["--help"]
+CMD ["server"]

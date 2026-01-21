@@ -17,7 +17,7 @@ message ChallengeRequest {
 
 message SignedChallengeRequest {
   ChallengeRequest challenge = 1;
-  optional identity.v1.Signature signature = 2; // Owner must sign the Challenge message using OrderedSignature (see FactorFight precedent)
+  identity.v1.Signature signature = 2; // Owner must sign the Challenge message using OrderedSignature (see FactorFight precedent)
 }
 
 message ChallengeResponse {

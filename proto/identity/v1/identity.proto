@@ -11,9 +11,8 @@ message Identity {
   string server_address = 2;
   string server_name = 3;
   string owner_name = 4;
-  string version = 5;
-  repeated string capabilities = 6;
-  int64 created_at = 7;
+  repeated string capabilities = 5;
+  int64 created_at = 6;
 }
 
 message Signature {

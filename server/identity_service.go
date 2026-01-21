@@ -25,10 +25,9 @@ func (s *identityService) GetIdentity(ctx context.Context, req *emptypb.Empty) (
 
 	return &identitypb.Identity{
 		PublicKey:     publicKey,
-		ServerAddress: s.serverConfig.Address,
-		ServerName:    s.serverConfig.ServerName,
-		OwnerName:     s.serverConfig.OwnerName,
-		Version:       s.serverConfig.Version,
+		ServerAddress: s.keyManager.ServerAddress(),
+		ServerName:    s.keyManager.ServerName(),
+		OwnerName:     s.keyManager.OwnerName(),
 		Capabilities:  capabilities,
 		CreatedAt:     0,
 	}, nil

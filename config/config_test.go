@@ -9,11 +9,11 @@ import (
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
-	if cfg.Server.Address != ":50052" {
-		t.Errorf("Expected address ':50052 got '%s'", cfg.Server.Address)
+	if cfg.Server.Port != 50052 {
+		t.Errorf("Expected port 50052 got '%d'", cfg.Server.Port)
 	}
-	if cfg.Server.ServerName != "ztg-server" {
-		t.Errorf("Expected server_name 'ztg-server', got '%s'", cfg.Server.ServerName)
+	if cfg.Identity.ServerName != "ztg-server" {
+		t.Errorf("Expected server_name 'ztg-server', got '%s'", cfg.Identity.ServerName)
 	}
 }
 
@@ -72,9 +72,8 @@ func TestLoadFromFile(t *testing.T) {
 
 func TestLoadFromEnv(t *testing.T) {
 	// Use t.Setenv for test-scoped environment variables
-	t.Setenv("ZTG_ADDRESS", ":9999")
+	t.Setenv("ZTG_PORT", "9999")
 	t.Setenv("ZTG_SERVER_NAME", "env-server")
-	t.Setenv("ZTG_SIGNED", "true")
 	t.Setenv("ZTG_KEY_PATH", "/custom/path/key.pem")
 	t.Setenv("ZTG_PRIVATE_KEY", "test-private-key")
 	t.Setenv("ZTG_OWNER_PUBLIC_KEY", "dGVzdC1wdWJsaWMta2V5")
@@ -82,28 +81,28 @@ func TestLoadFromEnv(t *testing.T) {
 	// Note: ZTG_STRATEGY not set - should not override existing config
 
 	cfg := DefaultConfig()
-	cfg = LoadFromEnv(cfg)
+	LoadFromEnv(cfg)
 
-	if cfg.Server.Address != ":9999" {
-		t.Errorf("Expected address ':9999' from env, got '%s'", cfg.Server.Address)
+	if cfg.Server.Port != 9999 {
+		t.Errorf("Expected port 9999 from env, got '%d'", cfg.Server.Port)
 	}
-	if cfg.Server.ServerName != "env-server" {
-		t.Errorf("Expected server_name 'env-server' from env, got '%s'", cfg.Server.ServerName)
+	if cfg.Identity.ServerName != "env-server" {
+		t.Errorf("Expected server_name 'env-server' from env, got '%s'", cfg.Identity.ServerName)
 	}
-	if cfg.Server.Signed != true {
-		t.Errorf("Expected signed true from env, got %v", cfg.Server.Signed)
+	if cfg.Identity.ServerName != "env-server" {
+		t.Errorf("Expected server_name 'env-server' from env, got '%s'", cfg.Identity.ServerName)
 	}
-	if cfg.Key.PrivateKeyPath != "/custom/path/key.pem" {
-		t.Errorf("Expected key_path '/custom/path/key.pem' from env, got '%s'", cfg.Key.PrivateKeyPath)
+	if cfg.Identity.PrivateKeyPath != "/custom/path/key.pem" {
+		t.Errorf("Expected key_path '/custom/path/key.pem' from env, got '%s'", cfg.Identity.PrivateKeyPath)
 	}
-	if cfg.Key.PrivateKey != "test-private-key" {
-		t.Errorf("Expected private_key 'test-private-key' from env, got '%s'", cfg.Key.PrivateKey)
+	if cfg.Identity.PrivateKey != "test-private-key" {
+		t.Errorf("Expected private_key 'test-private-key' from env, got '%s'", cfg.Identity.PrivateKey)
 	}
-	if cfg.Key.OwnerPublicKey != "dGVzdC1wdWJsaWMta2V5" {
-		t.Errorf("Expected owner_public_key 'dGVzdC1wdWJsaWMta2V5' from env, got '%s'", cfg.Key.OwnerPublicKey)
+	if cfg.Identity.OwnerPublicKey != "dGVzdC1wdWJsaWMta2V5" {
+		t.Errorf("Expected owner_public_key 'dGVzdC1wdWJsaWMta2V5' from env, got '%s'", cfg.Identity.OwnerPublicKey)
 	}
-	if cfg.Key.OwnerPublicKeyFile != "/custom/path/pubkey.pem" {
-		t.Errorf("Expected owner_public_key_file '/custom/path/pubkey.pem' from env, got '%s'", cfg.Key.OwnerPublicKeyFile)
+	if cfg.Identity.OwnerPublicKeyFile != "/custom/path/pubkey.pem" {
+		t.Errorf("Expected owner_public_key_file '/custom/path/pubkey.pem' from env, got '%s'", cfg.Identity.OwnerPublicKeyFile)
 	}
 }
 
@@ -113,79 +112,69 @@ func TestLoadFromEnvPartial(t *testing.T) {
 	// Note: Only server name set, others should preserve defaults
 
 	cfg := DefaultConfig()
-	originalAddress := cfg.Server.Address
-	originalSigned := cfg.Server.Signed
-	originalKeyPath := cfg.Key.PrivateKeyPath
+	originalAddress := cfg.Server.Port
+	originalKeyPath := cfg.Identity.PrivateKeyPath
 
-	cfg = LoadFromEnv(cfg)
+	LoadFromEnv(cfg)
 
 	// Should override only what's set in env
-	if cfg.Server.ServerName != "partial-server" {
-		t.Errorf("Expected server_name 'partial-server' from env, got '%s'", cfg.Server.ServerName)
+	if cfg.Identity.ServerName != "partial-server" {
+		t.Errorf("Expected server_name 'partial-server' from env, got '%s'", cfg.Identity.ServerName)
 	}
 
 	// Should preserve everything else from original config
-	if cfg.Server.Address != originalAddress {
-		t.Errorf("Expected address '%s' to be preserved, got '%s'", originalAddress, cfg.Server.Address)
+	if cfg.Server.Port != originalAddress {
+		t.Errorf("Expected port '%d' to be preserved, got '%d'", originalAddress, cfg.Server.Port)
 	}
-	if cfg.Server.Signed != originalSigned {
-		t.Errorf("Expected signed %v to be preserved, got %v", originalSigned, cfg.Server.Signed)
-	}
-	if cfg.Key.PrivateKeyPath != originalKeyPath {
-		t.Errorf("Expected key_path '%s' to be preserved, got '%s'", originalKeyPath, cfg.Key.PrivateKeyPath)
+	if cfg.Identity.PrivateKeyPath != originalKeyPath {
+		t.Errorf("Expected key_path '%s' to be preserved, got '%s'", originalKeyPath, cfg.Identity.PrivateKeyPath)
 	}
 }
 
 func TestLoadFromEnvOverridesCustomConfig(t *testing.T) {
 	// Test that env vars override custom config, not just defaults
-	t.Setenv("ZTG_ADDRESS", ":7777")
+	t.Setenv("ZTG_PORT", "7777")
 	t.Setenv("ZTG_OWNER_NAME", "env-owner")
 
 	cfg := &Config{
 		Server: ServerConfig{
-			Address:    ":5555",
-			ServerName: "custom-server",
-			OwnerName:  "custom-owner",
-			Version:    "2.0.0",
-			Signed:     true,
+			Port: 5555,
 		},
-		Key: KeyConfig{
+		Identity: IdentityConfig{
+			ServerName:     "custom-server",
+			OwnerName:      "custom-owner",
 			PrivateKeyPath: "/custom/key.pem",
 			ServerAddress:  ":5555",
 			ForceExample:   true,
 		},
 	}
 
-	cfg = LoadFromEnv(cfg)
+	LoadFromEnv(cfg)
 
 	// Env vars should override custom config values
-	if cfg.Server.Address != ":7777" {
-		t.Errorf("Expected address ':7777' from env, got '%s'", cfg.Server.Address)
+	if cfg.Server.Port != 7777 {
+		t.Errorf("Expected port 7777 from env, got '%d'", cfg.Server.Port)
 	}
-	if cfg.Server.OwnerName != "env-owner" {
-		t.Errorf("Expected owner_name 'env-owner' from env, got '%s'", cfg.Server.OwnerName)
+	if cfg.Identity.OwnerName != "env-owner" {
+		t.Errorf("Expected owner_name 'env-owner' from env, got '%s'", cfg.Identity.OwnerName)
 	}
 
 	// Non-env values should be preserved
-	if cfg.Server.ServerName != "custom-server" {
-		t.Errorf("Expected server_name 'custom-server' to be preserved, got '%s'", cfg.Server.ServerName)
-	}
-	if cfg.Server.Signed != true {
-		t.Errorf("Expected signed true to be preserved, got %v", cfg.Server.Signed)
+	if cfg.Identity.ServerName != "custom-server" {
+		t.Errorf("Expected server_name 'custom-server' to be preserved, got '%s'", cfg.Identity.ServerName)
 	}
 }
 
 func TestLoadFromEnvInvalid(t *testing.T) {
 	// Test that invalid env values don't crash
-	t.Setenv("ZTG_SIGNED", "not-a-boolean")
+	// Note: ZTG_SIGNED removed since signatures are always required now
 
 	cfg := DefaultConfig()
-	originalSigned := cfg.Server.Signed
 
-	cfg = LoadFromEnv(cfg)
+	LoadFromEnv(cfg)
 
-	// Should preserve original value when env parsing fails
-	if cfg.Server.Signed != originalSigned {
-		t.Errorf("Expected original signed value %v when env parsing fails, got %v", originalSigned, cfg.Server.Signed)
+	// Should work without signed field
+	if cfg.Server.Port != 50052 {
+		t.Errorf("Expected port 50052 to be preserved, got '%d'", cfg.Server.Port)
 	}
 }

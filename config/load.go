@@ -51,10 +51,9 @@ func SaveToFile(cfg *Config, path string) error {
 }
 
 // LoadFromEnv loads environment variables into config using envconfig
-func LoadFromEnv(cfg *Config) *Config {
+func LoadFromEnv(cfg *Config) {
 	if err := envconfig.Process("", cfg); err != nil {
 		// Don't fail on env parsing, just use existing values
 		// This allows partial environment overrides
 	}
-	return cfg
 }

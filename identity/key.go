@@ -18,10 +18,13 @@ type KeyManager struct {
 	ownerPublicKey ed25519.PublicKey
 	privateKey     ed25519.PrivateKey
 	publicKey      ed25519.PublicKey
+	serverAddress  string
+	serverName     string
+	ownerName      string
 	isExample      bool
 }
 
-func NewKeyManager(cfg config.KeyConfig) (*KeyManager, error) {
+func NewKeyManager(cfg config.IdentityConfig) (*KeyManager, error) {
 	// Handle owner public key from string or file
 	var ownerPublicKeyStr string
 	switch {
@@ -73,6 +76,9 @@ func NewKeyManager(cfg config.KeyConfig) (*KeyManager, error) {
 		ownerPublicKey: ownerKey,
 		privateKey:     privKey,
 		publicKey:      pubKey,
+		serverAddress:  cfg.ServerAddress,
+		serverName:     cfg.ServerName,
+		ownerName:      cfg.OwnerName,
 		isExample:      isExampleKey(pubKey),
 	}, nil
 }
@@ -143,15 +149,23 @@ func (km *KeyManager) OwnerPublicKey() ed25519.PublicKey {
 	return km.ownerPublicKey
 }
 
+func (km *KeyManager) ServerAddress() string {
+	return km.serverAddress
+}
+
+func (km *KeyManager) ServerName() string {
+	return km.serverName
+}
+
+func (km *KeyManager) OwnerName() string {
+	return km.ownerName
+}
+
 func (km *KeyManager) IsExample() bool {
 	return km.isExample
 }
 
-func ValidateKeyUsage(publicKey ed25519.PublicKey, env string) error {
-	if isExampleKey(publicKey) && env == "production" {
-		return fmt.Errorf("EXAMPLE KEY DETECTED: Cannot use example key in production")
-	}
-
+func ValidateKeyUsage(publicKey ed25519.PublicKey) error {
 	if isExampleKey(publicKey) {
 		fmt.Println("WARNING: Using example key - suitable for testing only")
 	}

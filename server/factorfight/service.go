@@ -32,16 +32,14 @@ type Service struct {
 	cfg        Config
 	keyManager *identity.KeyManager
 	serverAddr string
-	signedMode bool
 }
 
 // NewService creates a new FactorFight service.
-func NewService(cfg Config, keyManager *identity.KeyManager, serverAddr string, signedMode bool) *Service {
+func NewService(cfg Config, keyManager *identity.KeyManager, serverAddr string) *Service {
 	return &Service{
 		cfg:        cfg,
 		keyManager: keyManager,
 		serverAddr: serverAddr,
-		signedMode: signedMode,
 	}
 }
 
@@ -55,7 +53,7 @@ func (s *Service) Register(server *grpc.Server) {
 
 // StreamGame handles the gRPC streaming communication.
 func (s *Service) Play(stream factorfightpb.FactorFightService_PlayServer) error {
-	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr, s.signedMode)
+	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr)
 
 	factorfightPeer := createFactorfightPeer(stream, signer, verifier)
 
@@ -92,12 +90,10 @@ func (s *Service) Challenge(ctx context.Context, conn *grpc.ClientConn) (*gamepb
 		return nil, fmt.Errorf("failed to get peer identity: %w", err)
 	}
 
-	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr, s.signedMode)
+	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr)
 
 	// Cache the peer's public key for signature verification
-	if verifier != nil {
-		verifier.AddPeerIdentity(conn.Target(), peerIdentity.PublicKey)
-	}
+	verifier.AddPeerIdentity(conn.Target(), peerIdentity.PublicKey)
 
 	factorfightPeer := createFactorfightPeer(stream, signer, verifier)
 

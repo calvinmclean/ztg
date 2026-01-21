@@ -81,9 +81,3 @@ func generateKeyPair(outputPath string) error {
 
 	return nil
 }
-
-func main() {
-	if err := Command.Run(context.Background(), os.Args); err != nil {
-		os.Exit(1)
-	}
-}

@@ -20,22 +20,26 @@ import (
 )
 
 func TestTwoServerChallenge(t *testing.T) {
-	keyConfig1 := config.KeyConfig{
+	identityConfig1 := config.IdentityConfig{
+		ServerName:         "test-server-1",
+		OwnerName:          "test-user-1",
 		ServerAddress:      "localhost:50052",
 		PrivateKeyPath:     "../../keys/example_ed25519.pem",
 		OwnerPublicKeyFile: "../../keys/example_ed25519.pub.pem",
 	}
-	keyConfig2 := config.KeyConfig{
+	identityConfig2 := config.IdentityConfig{
+		ServerName:         "test-server-2",
+		OwnerName:          "test-user-2",
 		ServerAddress:      "localhost:50053",
 		PrivateKeyPath:     "../../keys/example_ed25519.pem",
 		OwnerPublicKeyFile: "../../keys/example_ed25519.pub.pem",
 	}
 
-	km1, err := identity.NewKeyManager(keyConfig1)
+	km1, err := identity.NewKeyManager(identityConfig1)
 	if err != nil {
 		t.Fatalf("Failed to create KeyManager 1: %v", err)
 	}
-	km2, err := identity.NewKeyManager(keyConfig2)
+	km2, err := identity.NewKeyManager(identityConfig2)
 	if err != nil {
 		t.Fatalf("Failed to create KeyManager 2: %v", err)
 	}
@@ -43,11 +47,7 @@ func TestTwoServerChallenge(t *testing.T) {
 	// Create server configs
 	var p1WinResult *bool
 	serverConfig1 := config.ServerConfig{
-		Address:    ":50052",
-		ServerName: "test-server-1",
-		OwnerName:  "test-user-1",
-		Version:    "1.0.0",
-		Signed:     false,
+		Port: 50052,
 	}
 	factorFightConfig1 := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
@@ -56,15 +56,11 @@ func TestTwoServerChallenge(t *testing.T) {
 			p1WinResult = &win
 		},
 	}
-	ffserver1 := ffserver.NewService(factorFightConfig1, km1, "localhost:50052", false)
+	ffserver1 := ffserver.NewService(factorFightConfig1, km1, "localhost:50052")
 
 	var p2WinResult *bool
 	serverConfig2 := config.ServerConfig{
-		Address:    ":50053",
-		ServerName: "test-server-2",
-		OwnerName:  "test-user-2",
-		Version:    "1.0.0",
-		Signed:     false,
+		Port: 50053,
 	}
 	factorFightConfig2 := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
@@ -73,7 +69,7 @@ func TestTwoServerChallenge(t *testing.T) {
 			p2WinResult = &win
 		},
 	}
-	ffserver2 := ffserver.NewService(factorFightConfig2, km2, "localhost:50053", false)
+	ffserver2 := ffserver.NewService(factorFightConfig2, km2, "localhost:50053")
 
 	// Create servers
 	server1, err := server.NewServer(serverConfig1, km1)
@@ -130,7 +126,7 @@ func TestTwoServerChallenge(t *testing.T) {
 	}
 
 	// Signer can use either KM because they just use the same owner key
-	signer := server.NewSigner(km1, ":50052")
+	signer := server.NewSigner(km1, "localhost:50052")
 	signature, err := signer.SignProto(req)
 	if err != nil {
 		t.Fatalf("Failed to sign message: %v", err)
@@ -164,23 +160,21 @@ func TestTwoServerChallenge(t *testing.T) {
 
 func TestChallengeAuthorization(t *testing.T) {
 	// Server config with owner public key
-	keyConfig := config.KeyConfig{
+	identityConfig := config.IdentityConfig{
+		ServerName:         "auth-test-server",
+		OwnerName:          "test-user",
 		ServerAddress:      "localhost:50054",
 		PrivateKeyPath:     "../../keys/example_ed25519.pem",
 		OwnerPublicKeyFile: "../../keys/example_ed25519.pub.pem",
 	}
 
-	km, err := identity.NewKeyManager(keyConfig)
+	km, err := identity.NewKeyManager(identityConfig)
 	if err != nil {
 		t.Fatalf("Failed to create KeyManager: %v", err)
 	}
 
 	serverConfig := config.ServerConfig{
-		Address:    ":50054",
-		ServerName: "auth-test-server",
-		OwnerName:  "test-user",
-		Version:    "1.0.0",
-		Signed:     true, // Enable signed mode
+		Port: 50054,
 	}
 
 	factorFightConfig := ffserver.Config{
@@ -189,7 +183,7 @@ func TestChallengeAuthorization(t *testing.T) {
 			t.Logf("Auth Test - Win: %v, Log: %v", win, log)
 		},
 	}
-	ffserver := ffserver.NewService(factorFightConfig, km, "localhost:50054", true)
+	ffserver := ffserver.NewService(factorFightConfig, km, "localhost:50054")
 
 	srv, err := server.NewServer(serverConfig, km)
 	if err != nil {

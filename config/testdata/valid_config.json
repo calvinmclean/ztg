@@ -1,12 +1,10 @@
 {
   "server": {
-    "address": ":9090",
+    "port": 9090
+  },
+  "identity": {
     "server_name": "test-server",
     "owner_name": "test-user",
-    "version": "2.0.0",
-    "signed": true
-  },
-  "key": {
     "owner_public_key": "key",
     "private_key_path": "keys/test.pem",
     "server_address": ":9090",

@@ -80,28 +80,6 @@ func TestIsExampleKey(t *testing.T) {
 	}
 }
 
-func TestValidateKeyUsage(t *testing.T) {
-	setupTestEnv(t)
-
-	privKey, pubKey, err := loadKeyFromFile("keys/example_ed25519.pem")
-	km := &KeyManager{privateKey: privKey, publicKey: pubKey, isExample: true}
-	if err != nil {
-		t.Fatalf("Failed to load example key: %v", err)
-	}
-
-	// Test production environment
-	err = ValidateKeyUsage(km.PublicKey(), "production")
-	if err == nil {
-		t.Fatal("Should error on example key in production")
-	}
-
-	// Test development environment
-	err = ValidateKeyUsage(km.PublicKey(), "development")
-	if err != nil {
-		t.Fatalf("Should not error in development: %v", err)
-	}
-}
-
 func TestSigner_BasicOperations(t *testing.T) {
 	setupTestEnv(t)
 

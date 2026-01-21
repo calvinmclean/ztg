@@ -3,29 +3,25 @@ version: "3"
 tasks:
   dev1:
     env:
-      ZTG_ADDRESS: ":50052"
-      ZTG_SIGNED: true
+      ZTG_PORT: 50052
+      ZTG_IDENTITY_SERVER_ADDRESS: "localhost:50052"
     cmds:
-      - go run cmd/server/main.go
+      - go run cmd/ztg/main.go server
 
   dev2:
     env:
-      ZTG_ADDRESS: ":50053"
-      ZTG_SIGNED: true
+      ZTG_PORT: 50053
+      ZTG_IDENTITY_SERVER_ADDRESS: "localhost:50053"
     cmds:
-      - go run cmd/server/main.go
+      - go run cmd/ztg/main.go server
 
   highroll:
     cmds:
-      - go run cmd/challenge/main.go create --target localhost:50052 --game ztg.HighRoll.v1 --server localhost:50053
+      - go run cmd/ztg/main.go challenge send --target localhost:50052 --game ztg.HighRoll.v1 --server localhost:50053
 
   identity:
     cmds:
       - grpcurl -plaintext -d '{}' localhost:50052 identity.v1.IdentityService/GetIdentity
-
-  challenge:
-    cmds:
-      - go run cmd/challenge/main.go
 
   generate:
     cmds:
@@ -38,16 +34,16 @@ tasks:
   ff1:
     desc: send a request to dev1 server to challenge dev2 to FactorFight
     cmds:
-      - go run cmd/challenge/main.go send --target localhost:50053 --game ztg.FactorFight.v1 --server localhost:50052
+      - go run cmd/ztg/main.go challenge send --target localhost:50053 --game ztg.FactorFight.v1 --server localhost:50052
 
   ff2:
     desc: send a request to dev2 server to challenge dev1 to FactorFight
     cmds:
-      - go run cmd/challenge/main.go send --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053
+      - go run cmd/ztg/main.go challenge send --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053
 
   print_challenge:
     cmds:
-      - go run cmd/challenge/main.go create --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053
+      - go run cmd/ztg/main.go challenge create --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053
 
   docker-build:
     desc: Build Docker image for ztg CLI

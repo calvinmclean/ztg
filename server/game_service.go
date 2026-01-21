@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"ztg/config"
 	gamepb "ztg/gen/go/game/v1"
@@ -21,11 +22,14 @@ type gameService struct {
 	serverConfig config.ServerConfig
 	keyManager   *identity.KeyManager
 	serverAddr   string
-	signedMode   bool
 	registry     *registry
+	logger       *slog.Logger
 }
 
 func (s *gameService) Challenge(ctx context.Context, req *gamepb.SignedChallengeRequest) (*gamepb.ChallengeResponse, error) {
+	logger := s.logger
+	logger.Debug("handling challenge request", "game_id", req.Challenge.GameId, "target", req.Challenge.Target)
+
 	if req.Signature == nil || len(req.Signature.Signature) == 0 {
 		return nil, fmt.Errorf("owner signature required for Challenge")
 	}
@@ -38,6 +42,7 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.SignedChallenge
 		return nil, status.Error(codes.PermissionDenied, fmt.Errorf("signature verification failed: %w", err).Error())
 	}
 
+	logger.Debug("connecting to target server", "target", req.Challenge.Target)
 	conn, err := grpc.NewClient(
 		req.Challenge.Target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -50,5 +55,7 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.SignedChallenge
 	if !ok {
 		return nil, status.Error(codes.NotFound, fmt.Errorf("unknown game: %q %v", req.Challenge.GameId, s.registry.GameIDs()).Error())
 	}
+
+	logger.Debug("executing challenge", "game_id", req.Challenge.GameId)
 	return challenge(ctx, conn)
 }

@@ -283,7 +283,7 @@ func (v *Verifier) VerifyMessageSignature(message []byte, signature *identitypb.
 
 	// SECURITY: Verify fetched identity's address matches the claimed address
 	if peerIdentity.ServerAddress != signature.SignerAddress {
-		return fmt.Errorf("address mismatch: identity reports %s, signature claims %s",
+		return fmt.Errorf("address mismatch: identity reports %q, signature claims %q",
 			peerIdentity.ServerAddress, signature.SignerAddress)
 	}
 
@@ -342,7 +342,7 @@ func (v *Verifier) VerifyOrderedSignature(message []byte, signature *identitypb.
 
 	// SECURITY: Verify fetched identity's address matches the claimed address
 	if peerIdentity.ServerAddress != signature.SignerAddress {
-		return fmt.Errorf("address mismatch in ordered signature: identity reports %s, signature claims %s",
+		return fmt.Errorf("address mismatch in ordered signature: identity reports %q, signature claims %q",
 			peerIdentity.ServerAddress, signature.SignerAddress)
 	}
 

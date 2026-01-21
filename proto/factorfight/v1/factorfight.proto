@@ -32,7 +32,7 @@ message SignedFactorFightMessage {
   option (setters.v1.generate_setters) = true;
 
   FactorFightMessage message = 1;
-  optional identity.v1.OrderedSignature signature = 2;
+  identity.v1.OrderedSignature signature = 2;
 }
 
 service FactorFightService {

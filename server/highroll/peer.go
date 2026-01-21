@@ -26,13 +26,9 @@ var _ dice.Peer = (*peer)(nil)
 
 func (p *peer) Send(ctx context.Context, msg dice.Message) error {
 	protoMsg := convertInternalDiceMessageToProto(msg)
-	signedMsg := &dicepb.SignedMessage{Message: protoMsg}
-	if p.signer != nil {
-		var err error
-		signedMsg, err = server.CreateSignedMessage(&dicepb.SignedMessage{}, p.signer, protoMsg)
-		if err != nil {
-			return err
-		}
+	signedMsg, err := server.CreateSignedMessage(&dicepb.SignedMessage{}, p.signer, protoMsg)
+	if err != nil {
+		return err
 	}
 	return p.highrollStream.Send(signedMsg)
 }

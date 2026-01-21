@@ -25,7 +25,7 @@ message SignedMessage {
   option (setters.v1.generate_setters) = true;
 
   Message message = 1;
-  optional identity.v1.Signature signature = 2;
+  identity.v1.Signature signature = 2;
 }
 
 service DiceService {

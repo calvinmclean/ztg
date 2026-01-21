@@ -36,30 +36,25 @@ func (p *peer) SendMove(ctx context.Context, move factorfight.Move) error {
 	ffMsg := &factorfightpb.FactorFightMessage{
 		Message: &factorfightpb.FactorFightMessage_Move{Move: protoMove},
 	}
-	signedMsg := &factorfightpb.SignedFactorFightMessage{
-		Message: ffMsg,
+
+	// Calculate hash of this message for hash chain
+	msgBytes, err := proto.Marshal(ffMsg)
+	if err != nil {
+		return fmt.Errorf("failed to serialize message for hash chain: %w", err)
 	}
 
-	if p.signer != nil {
-		// Calculate hash of this message for hash chain
-		msgBytes, err := proto.Marshal(ffMsg)
-		if err != nil {
-			return fmt.Errorf("failed to serialize message for hash chain: %w", err)
-		}
+	hash := sha256.Sum256(msgBytes)
 
-		hash := sha256.Sum256(msgBytes)
+	// Increment sequence for ordered signature
+	p.sequence++
 
-		// Increment sequence for ordered signature
-		p.sequence++
-
-		signedMsg, err = server.CreateSignedOrderedMessage(&factorfightpb.SignedFactorFightMessage{}, p.signer, ffMsg, p.lastHash, p.sequence)
-		if err != nil {
-			return err
-		}
-
-		// Update last hash for next message
-		p.lastHash = hash[:]
+	signedMsg, err := server.CreateSignedOrderedMessage(&factorfightpb.SignedFactorFightMessage{}, p.signer, ffMsg, p.lastHash, p.sequence)
+	if err != nil {
+		return err
 	}
+
+	// Update last hash for next message
+	p.lastHash = hash[:]
 
 	return p.stream.Send(signedMsg)
 }
@@ -94,30 +89,25 @@ func (p *peer) Send(ctx context.Context, msg dice.Message) error {
 	ffMsg := &factorfightpb.FactorFightMessage{
 		Message: &factorfightpb.FactorFightMessage_DiceMsg{DiceMsg: protoMsg},
 	}
-	signedFFMsg := &factorfightpb.SignedFactorFightMessage{
-		Message: ffMsg,
+
+	// Calculate hash of this message for hash chain
+	msgBytes, err := proto.Marshal(ffMsg)
+	if err != nil {
+		return fmt.Errorf("failed to serialize message for hash chain: %w", err)
 	}
 
-	if p.signer != nil {
-		// Calculate hash of this message for hash chain
-		msgBytes, err := proto.Marshal(ffMsg)
-		if err != nil {
-			return fmt.Errorf("failed to serialize message for hash chain: %w", err)
-		}
+	hash := sha256.Sum256(msgBytes)
 
-		hash := sha256.Sum256(msgBytes)
+	// Increment sequence for ordered signature
+	p.sequence++
 
-		// Increment sequence for ordered signature
-		p.sequence++
-
-		signedFFMsg, err = server.CreateSignedOrderedMessage(&factorfightpb.SignedFactorFightMessage{}, p.signer, ffMsg, p.lastHash, p.sequence)
-		if err != nil {
-			return err
-		}
-
-		// Update last hash for next message
-		p.lastHash = hash[:]
+	signedFFMsg, err := server.CreateSignedOrderedMessage(&factorfightpb.SignedFactorFightMessage{}, p.signer, ffMsg, p.lastHash, p.sequence)
+	if err != nil {
+		return err
 	}
+
+	// Update last hash for next message
+	p.lastHash = hash[:]
 
 	return p.stream.Send(signedFFMsg)
 }

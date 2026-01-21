@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"ztg/config"
 	"ztg/factorfight"
@@ -13,7 +12,6 @@ import (
 	ffserver "ztg/server/factorfight"
 	highrollserver "ztg/server/highroll"
 
-	"github.com/kelseyhightower/envconfig"
 	"github.com/urfave/cli/v3"
 )
 
@@ -41,25 +39,19 @@ var Command = &cli.Command{
 		}
 
 		// Override with environment variables
-		_ = envconfig.Process("", cfg)
+		config.LoadFromEnv(cfg)
 
-		if cfg.Server.Signed {
-			fmt.Println("🔐 Starting server in SIGNED mode with identity verification")
-			fmt.Println("   - All signed RPCs will require valid signatures")
-			fmt.Println("   - Server will sign all responses with its private key")
-			fmt.Println("   - Hash chain verification enabled for FactorFight")
-		} else {
-			fmt.Println("🎲 Starting server in REGULAR mode")
-			fmt.Println("   - Unsigned RPCs are available")
-			fmt.Println("   - Use --signed flag to enable identity verification")
-		}
+		fmt.Println("🔐 Starting server with identity verification")
+		fmt.Println("   - All RPCs require valid signatures")
+		fmt.Println("   - Server will sign all responses with its private key")
+		fmt.Println("   - Hash chain verification enabled for FactorFight")
 
 		// Set default private key path if not specified
-		if cfg.Key.PrivateKeyPath == "" && cfg.Key.PrivateKey == "" {
-			cfg.Key.PrivateKeyPath = "keys/example_ed25519.pem"
+		if cfg.Identity.PrivateKeyPath == "" && cfg.Identity.PrivateKey == "" {
+			cfg.Identity.PrivateKeyPath = "keys/example_ed25519.pem"
 		}
 
-		keyManager, err := identity.NewKeyManager(cfg.Key)
+		keyManager, err := identity.NewKeyManager(cfg.Identity)
 		if err != nil {
 			return fmt.Errorf("failed to initialize key manager: %w", err)
 		}
@@ -76,19 +68,13 @@ var Command = &cli.Command{
 				fmt.Println(log)
 			},
 		}
-		ffService := ffserver.NewService(ffCfg, keyManager, cfg.Server.Address, cfg.Server.Signed)
+		ffService := ffserver.NewService(ffCfg, keyManager, cfg.Identity.ServerAddress)
 		grpcServer.Register(ffService)
 
-		highrollService := highrollserver.NewService(keyManager, cfg.Server.Address, cfg.Server.Signed)
+		highrollService := highrollserver.NewService(keyManager, cfg.Identity.ServerAddress)
 		grpcServer.Register(highrollService)
 
 		grpcServer.Run()
 		return nil
 	},
-}
-
-func main() {
-	if err := Command.Run(context.Background(), os.Args); err != nil {
-		os.Exit(1)
-	}
 }

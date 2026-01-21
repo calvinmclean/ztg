@@ -18,14 +18,12 @@ type Service struct {
 	dicepb.UnimplementedDiceServiceServer
 	keyManager *identity.KeyManager
 	serverAddr string
-	signedMode bool
 }
 
-func NewService(keyManager *identity.KeyManager, serverAddr string, signedMode bool) *Service {
+func NewService(keyManager *identity.KeyManager, serverAddr string) *Service {
 	return &Service{
 		keyManager: keyManager,
 		serverAddr: serverAddr,
-		signedMode: signedMode,
 	}
 }
 
@@ -44,7 +42,7 @@ func (s *Service) Challenge(ctx context.Context, conn *grpc.ClientConn) (*gamepb
 	if err != nil {
 		return nil, err
 	}
-	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr, s.signedMode)
+	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr)
 	highrollPeer := newPeer(stream, signer, verifier)
 	roller, err := newRoller(highrollPeer, server.DefaultDieSides)
 	if err != nil {
@@ -65,7 +63,7 @@ func (s *Service) Challenge(ctx context.Context, conn *grpc.ClientConn) (*gamepb
 
 // gRPC implementation for rolling dice
 func (s *Service) Roll(stream dicepb.DiceService_RollServer) error {
-	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr, s.signedMode)
+	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr)
 	highrollPeer := newPeer(stream, signer, verifier)
 	roller, err := newRoller(highrollPeer, server.DefaultDieSides)
 	if err != nil {

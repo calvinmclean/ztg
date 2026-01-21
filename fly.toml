@@ -1,0 +1,39 @@
+# fly.toml app configuration file generated for ztg on 2026-01-20T22:31:34-07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'ztg'
+primary_region = 'lax'
+
+[build]
+
+[[services]]
+  internal_port = 50052
+  protocol = "tcp"
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 1024
+
+[[services.ports]]
+  handlers = ["tls", "http"]
+  port = 443
+  tls_options = { "alpn" = ["h2"] }
+
+[services.ports.http_options]
+  h2_backend = true
+
+[env]
+  ZTG_PORT = 50052
+  ZTG_LOG_LEVEL = "DEBUG"
+  ZTG_SERVER_NAME = "ZTG"
+  ZTG_OWNER_NAME = "Calvin McLean"
+  ZTG_IDENTITY_SERVER_ADDRESS = "ztg.fly.dev:443"

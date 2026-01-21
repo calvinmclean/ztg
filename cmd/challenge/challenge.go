@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"os"
+	"strings"
 	"time"
 
 	"ztg/config"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -103,12 +104,12 @@ func sendChallenge(ctx context.Context, cmd *cli.Command) error {
 	timeout := time.Duration(cmd.Int("timeout")) * time.Second
 
 	// Create key manager
-	keyConfig := config.KeyConfig{
+	identityConfig := config.IdentityConfig{
 		ServerAddress:  "owner",
 		PrivateKeyPath: keyPath,
 	}
 
-	km, err := identity.NewKeyManager(keyConfig)
+	km, err := identity.NewKeyManager(identityConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create key manager: %w", err)
 	}
@@ -133,10 +134,14 @@ func sendChallenge(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Connect to target server
-	conn, err := grpc.NewClient(
-		serverAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	var grpcOpts []grpc.DialOption
+	if strings.HasSuffix(serverAddr, ":443") {
+		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(credentials.NewTLS(nil)))
+	} else {
+		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
+
+	conn, err := grpc.NewClient(serverAddr, grpcOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to connect to target server: %w", err)
 	}
@@ -172,13 +177,13 @@ func createChallenge(ctx context.Context, cmd *cli.Command) error {
 	keyPath := cmd.String("key-path")
 
 	// Create key manager
-	keyConfig := config.KeyConfig{
+	identityConfig := config.IdentityConfig{
 		ServerAddress:      serverAddr,
 		PrivateKeyPath:     keyPath,
 		OwnerPublicKeyFile: "keys/example_ed25519.pub.pem",
 	}
 
-	km, err := identity.NewKeyManager(keyConfig)
+	km, err := identity.NewKeyManager(identityConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create key manager: %w", err)
 	}
@@ -210,10 +215,4 @@ func createChallenge(ctx context.Context, cmd *cli.Command) error {
 	fmt.Printf("  Signature.Signature: %s\n", hex.EncodeToString(signedReq.Signature.Signature))
 
 	return nil
-}
-
-func main() {
-	if err := Command.Run(context.Background(), os.Args); err != nil {
-		os.Exit(1)
-	}
 }
