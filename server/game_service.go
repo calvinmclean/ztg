@@ -7,11 +7,10 @@ import (
 
 	"ztg/config"
 	gamepb "ztg/gen/go/game/v1"
+	"ztg/grpcutil"
 	"ztg/identity"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -43,10 +42,7 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.SignedChallenge
 	}
 
 	logger.Debug("connecting to target server", "target", req.Challenge.Target)
-	conn, err := grpc.NewClient(
-		req.Challenge.Target,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	conn, err := grpcutil.NewClient(req.Challenge.Target)
 	if err != nil {
 		return nil, status.Error(codes.FailedPrecondition, fmt.Errorf("failed to connect to target %q: %w", req.Challenge.Target, err).Error())
 	}

@@ -10,9 +10,8 @@ import (
 	"time"
 
 	identitypb "ztg/gen/go/identity/v1"
+	"ztg/grpcutil"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -401,7 +400,7 @@ func (v *Verifier) VerifySignatureProto(msg proto.Message, signature *identitypb
 // getPeerIdentity fetches peer identity from their gRPC service
 func (v *Verifier) getPeerIdentity(peerAddr string) (*identitypb.Identity, error) {
 	// Connect to peer's identity service
-	conn, err := grpc.NewClient(peerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpcutil.NewClient(peerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to peer %s: %w", peerAddr, err)
 	}

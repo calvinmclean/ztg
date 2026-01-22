@@ -4,18 +4,15 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"time"
 
 	"ztg/config"
 	gamepb "ztg/gen/go/game/v1"
+	"ztg/grpcutil"
 	"ztg/identity"
 	"ztg/server"
 
 	"github.com/urfave/cli/v3"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 var Command = &cli.Command{
@@ -134,14 +131,7 @@ func sendChallenge(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Connect to target server
-	var grpcOpts []grpc.DialOption
-	if strings.HasSuffix(serverAddr, ":443") {
-		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(credentials.NewTLS(nil)))
-	} else {
-		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	}
-
-	conn, err := grpc.NewClient(serverAddr, grpcOpts...)
+	conn, err := grpcutil.NewClient(serverAddr)
 	if err != nil {
 		return fmt.Errorf("failed to connect to target server: %w", err)
 	}

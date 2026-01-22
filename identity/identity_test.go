@@ -1,10 +1,27 @@
 package identity
 
 import (
+	"crypto/ed25519"
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func verifySignature(signer *Signer, message []byte, signature []byte, signerAddress string) error {
+	hash := sha256.Sum256(message)
+
+	if !ed25519.Verify(signer.PublicKey(), hash[:], signature) {
+		return fmt.Errorf("invalid signature")
+	}
+
+	if signerAddress != signer.Address() {
+		return fmt.Errorf("signer address mismatch")
+	}
+
+	return nil
+}
 
 func setupTestEnv(t *testing.T) {
 	wd, _ := os.Getwd()
@@ -97,13 +114,13 @@ func TestSigner_BasicOperations(t *testing.T) {
 		t.Fatalf("Failed to sign message: %v", err)
 	}
 
-	err = signer.Verify(message, signature, "localhost:8080")
+	err = verifySignature(signer, message, signature, "localhost:8080")
 	if err != nil {
 		t.Fatalf("Failed to verify signature: %v", err)
 	}
 
 	// Test verification with wrong address
-	err = signer.Verify(message, signature, "wrong:address")
+	err = verifySignature(signer, message, signature, "wrong:address")
 	if err == nil {
 		t.Fatal("Should fail verification with wrong address")
 	}
