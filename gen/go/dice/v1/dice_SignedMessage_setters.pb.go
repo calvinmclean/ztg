@@ -3,7 +3,7 @@
 package v1
 
 import (
-	v1 "ztg/gen/go/identity/v1"
+	v1 "github.com/calvinmclean/ztg/gen/go/identity/v1"
 )
 
 func (s *SignedMessage) SetMessage(v *Message) {

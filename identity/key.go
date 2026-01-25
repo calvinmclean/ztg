@@ -6,7 +6,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"ztg/config"
+
+	"github.com/calvinmclean/ztg/config"
 )
 
 const (
@@ -59,8 +60,8 @@ func NewKeyManager(cfg config.IdentityConfig) (*KeyManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error loading private key from string: %w", err)
 		}
-	case cfg.PrivateKeyPath != "":
-		privKey, pubKey, err = loadKeyFromFile(cfg.PrivateKeyPath)
+	case cfg.PrivateKeyFile != "":
+		privKey, pubKey, err = loadKeyFromFile(cfg.PrivateKeyFile)
 		if err != nil {
 			return nil, fmt.Errorf("error loading private key from file: %w", err)
 		}

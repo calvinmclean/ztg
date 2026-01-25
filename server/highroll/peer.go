@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"ztg/dice"
-	dicepb "ztg/gen/go/dice/v1"
-	"ztg/server"
+	"github.com/calvinmclean/ztg/dice"
+	dicepb "github.com/calvinmclean/ztg/gen/go/dice/v1"
+	"github.com/calvinmclean/ztg/server"
 )
 
 type stream interface {

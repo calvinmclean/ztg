@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"ztg/dice"
-	"ztg/factorfight"
+	"github.com/calvinmclean/ztg/dice"
+	"github.com/calvinmclean/ztg/factorfight"
 )
 
 func TestBumps(t *testing.T) {

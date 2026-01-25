@@ -1,7 +1,7 @@
 package server
 
 import (
-	"ztg/identity"
+	"github.com/calvinmclean/ztg/identity"
 )
 
 // CreateSignerVerifierPair creates a signer and verifier pair if signed mode is enabled

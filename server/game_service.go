@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"ztg/config"
-	gamepb "ztg/gen/go/game/v1"
-	"ztg/grpcutil"
-	"ztg/identity"
+	"github.com/calvinmclean/ztg/config"
+	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
+	"github.com/calvinmclean/ztg/grpcutil"
+	"github.com/calvinmclean/ztg/identity"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

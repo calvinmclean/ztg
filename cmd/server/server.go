@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"ztg/config"
-	"ztg/factorfight"
-	"ztg/identity"
-	"ztg/server"
+	"github.com/calvinmclean/ztg/config"
+	"github.com/calvinmclean/ztg/factorfight"
+	"github.com/calvinmclean/ztg/identity"
+	"github.com/calvinmclean/ztg/server"
 
-	ffserver "ztg/server/factorfight"
-	highrollserver "ztg/server/highroll"
+	ffserver "github.com/calvinmclean/ztg/server/factorfight"
+	highrollserver "github.com/calvinmclean/ztg/server/highroll"
 
 	"github.com/urfave/cli/v3"
 )
@@ -47,8 +47,8 @@ var Command = &cli.Command{
 		fmt.Println("   - Hash chain verification enabled for FactorFight")
 
 		// Set default private key path if not specified
-		if cfg.Identity.PrivateKeyPath == "" && cfg.Identity.PrivateKey == "" {
-			cfg.Identity.PrivateKeyPath = "keys/example_ed25519.pem"
+		if cfg.Identity.PrivateKeyFile == "" && cfg.Identity.PrivateKey == "" {
+			cfg.Identity.PrivateKeyFile = "keys/example_ed25519.pem"
 		}
 
 		keyManager, err := identity.NewKeyManager(cfg.Identity)

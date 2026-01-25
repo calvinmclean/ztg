@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"ztg/config"
-	"ztg/factorfight"
-	gamepb "ztg/gen/go/game/v1"
-	identitypb "ztg/gen/go/identity/v1"
-	"ztg/identity"
-	"ztg/server"
-	ffserver "ztg/server/factorfight"
+	"github.com/calvinmclean/ztg/config"
+	"github.com/calvinmclean/ztg/factorfight"
+	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
+	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	"github.com/calvinmclean/ztg/identity"
+	"github.com/calvinmclean/ztg/server"
+	ffserver "github.com/calvinmclean/ztg/server/factorfight"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -24,14 +24,14 @@ func TestTwoServerChallenge(t *testing.T) {
 		ServerName:         "test-server-1",
 		OwnerName:          "test-user-1",
 		ServerAddress:      "localhost:50052",
-		PrivateKeyPath:     "../../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../../keys/example_ed25519.pem",
 		OwnerPublicKeyFile: "../../keys/example_ed25519.pub.pem",
 	}
 	identityConfig2 := config.IdentityConfig{
 		ServerName:         "test-server-2",
 		OwnerName:          "test-user-2",
 		ServerAddress:      "localhost:50053",
-		PrivateKeyPath:     "../../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../../keys/example_ed25519.pem",
 		OwnerPublicKeyFile: "../../keys/example_ed25519.pub.pem",
 	}
 
@@ -164,7 +164,7 @@ func TestChallengeAuthorization(t *testing.T) {
 		ServerName:         "auth-test-server",
 		OwnerName:          "test-user",
 		ServerAddress:      "localhost:50054",
-		PrivateKeyPath:     "../../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../../keys/example_ed25519.pem",
 		OwnerPublicKeyFile: "../../keys/example_ed25519.pub.pem",
 	}
 

@@ -4,10 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"ztg/dice"
-	"ztg/factorfight"
-	factorfightpb "ztg/gen/go/factorfight/v1"
-	"ztg/server"
+
+	"github.com/calvinmclean/ztg/dice"
+	"github.com/calvinmclean/ztg/factorfight"
+	factorfightpb "github.com/calvinmclean/ztg/gen/go/factorfight/v1"
+	"github.com/calvinmclean/ztg/server"
 
 	"google.golang.org/protobuf/proto"
 )

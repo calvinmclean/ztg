@@ -5,7 +5,7 @@ import (
 	"math"
 	"testing"
 
-	"ztg/dice"
+	"github.com/calvinmclean/ztg/dice"
 )
 
 func TestPipePeer(t *testing.T) {

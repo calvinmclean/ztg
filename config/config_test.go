@@ -74,7 +74,7 @@ func TestLoadFromEnv(t *testing.T) {
 	// Use t.Setenv for test-scoped environment variables
 	t.Setenv("ZTG_PORT", "9999")
 	t.Setenv("ZTG_SERVER_NAME", "env-server")
-	t.Setenv("ZTG_KEY_PATH", "/custom/path/key.pem")
+	t.Setenv("ZTG_KEY_FILE", "/custom/path/key.pem")
 	t.Setenv("ZTG_PRIVATE_KEY", "test-private-key")
 	t.Setenv("ZTG_OWNER_PUBLIC_KEY", "dGVzdC1wdWJsaWMta2V5")
 	t.Setenv("ZTG_OWNER_PUBLIC_KEY_FILE", "/custom/path/pubkey.pem")
@@ -92,8 +92,8 @@ func TestLoadFromEnv(t *testing.T) {
 	if cfg.Identity.ServerName != "env-server" {
 		t.Errorf("Expected server_name 'env-server' from env, got '%s'", cfg.Identity.ServerName)
 	}
-	if cfg.Identity.PrivateKeyPath != "/custom/path/key.pem" {
-		t.Errorf("Expected key_path '/custom/path/key.pem' from env, got '%s'", cfg.Identity.PrivateKeyPath)
+	if cfg.Identity.PrivateKeyFile != "/custom/path/key.pem" {
+		t.Errorf("Expected key_path '/custom/path/key.pem' from env, got '%s'", cfg.Identity.PrivateKeyFile)
 	}
 	if cfg.Identity.PrivateKey != "test-private-key" {
 		t.Errorf("Expected private_key 'test-private-key' from env, got '%s'", cfg.Identity.PrivateKey)
@@ -113,7 +113,7 @@ func TestLoadFromEnvPartial(t *testing.T) {
 
 	cfg := DefaultConfig()
 	originalAddress := cfg.Server.Port
-	originalKeyPath := cfg.Identity.PrivateKeyPath
+	originalKeyPath := cfg.Identity.PrivateKeyFile
 
 	LoadFromEnv(cfg)
 
@@ -126,8 +126,8 @@ func TestLoadFromEnvPartial(t *testing.T) {
 	if cfg.Server.Port != originalAddress {
 		t.Errorf("Expected port '%d' to be preserved, got '%d'", originalAddress, cfg.Server.Port)
 	}
-	if cfg.Identity.PrivateKeyPath != originalKeyPath {
-		t.Errorf("Expected key_path '%s' to be preserved, got '%s'", originalKeyPath, cfg.Identity.PrivateKeyPath)
+	if cfg.Identity.PrivateKeyFile != originalKeyPath {
+		t.Errorf("Expected key_path '%s' to be preserved, got '%s'", originalKeyPath, cfg.Identity.PrivateKeyFile)
 	}
 }
 
@@ -143,7 +143,7 @@ func TestLoadFromEnvOverridesCustomConfig(t *testing.T) {
 		Identity: IdentityConfig{
 			ServerName:     "custom-server",
 			OwnerName:      "custom-owner",
-			PrivateKeyPath: "/custom/key.pem",
+			PrivateKeyFile: "/custom/key.pem",
 			ServerAddress:  ":5555",
 			ForceExample:   true,
 		},
@@ -176,5 +176,133 @@ func TestLoadFromEnvInvalid(t *testing.T) {
 	// Should work without signed field
 	if cfg.Server.Port != 50052 {
 		t.Errorf("Expected port 50052 to be preserved, got '%d'", cfg.Server.Port)
+	}
+}
+
+func TestConfigValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      *Config
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid config with owner_public_key and private_key",
+			config: &Config{
+				Server: ServerConfig{
+					Port:     8080,
+					LogLevel: "debug",
+				},
+				Identity: IdentityConfig{
+					ServerName:         "test-server",
+					OwnerName:          "test-owner",
+					OwnerPublicKey:     "test-public-key",
+					OwnerPublicKeyFile: "",
+					PrivateKey:         "test-private-key",
+					PrivateKeyFile:     "",
+					ServerAddress:      "localhost:8080",
+					ForceExample:       false,
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid config with owner_public_key_file and private_key_file",
+			config: &Config{
+				Server: ServerConfig{
+					Port:     8080,
+					LogLevel: "debug",
+				},
+				Identity: IdentityConfig{
+					ServerName:         "test-server",
+					OwnerName:          "test-owner",
+					OwnerPublicKey:     "",
+					OwnerPublicKeyFile: "/path/to/public.key",
+					PrivateKey:         "",
+					PrivateKeyFile:     "/path/to/private.key",
+					ServerAddress:      "localhost:8080",
+					ForceExample:       false,
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid config - missing both owner_public_key and owner_public_key_file",
+			config: &Config{
+				Server: ServerConfig{
+					Port:     8080,
+					LogLevel: "debug",
+				},
+				Identity: IdentityConfig{
+					ServerName:         "test-server",
+					OwnerName:          "test-owner",
+					OwnerPublicKey:     "",
+					OwnerPublicKeyFile: "",
+					PrivateKey:         "test-private-key",
+					PrivateKeyFile:     "",
+					ServerAddress:      "localhost:8080",
+					ForceExample:       false,
+				},
+			},
+			expectError: true,
+			errorMsg:    "config validation failed",
+		},
+		{
+			name: "invalid config - missing both private_key and private_key_file",
+			config: &Config{
+				Server: ServerConfig{
+					Port:     8080,
+					LogLevel: "debug",
+				},
+				Identity: IdentityConfig{
+					ServerName:         "test-server",
+					OwnerName:          "test-owner",
+					OwnerPublicKey:     "test-public-key",
+					OwnerPublicKeyFile: "",
+					PrivateKey:         "",
+					PrivateKeyFile:     "",
+					ServerAddress:      "localhost:8080",
+					ForceExample:       false,
+				},
+			},
+			expectError: true,
+			errorMsg:    "config validation failed",
+		},
+		{
+			name: "invalid config - zero port",
+			config: &Config{
+				Server: ServerConfig{
+					Port:     0,
+					LogLevel: "debug",
+				},
+				Identity: IdentityConfig{
+					ServerName:         "test-server",
+					OwnerName:          "test-owner",
+					OwnerPublicKey:     "test-public-key",
+					OwnerPublicKeyFile: "",
+					PrivateKey:         "test-private-key",
+					PrivateKeyFile:     "",
+					ServerAddress:      "localhost:8080",
+					ForceExample:       false,
+				},
+			},
+			expectError: true,
+			errorMsg:    "config validation failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.Validate()
+			if (err != nil) != tt.expectError {
+				t.Errorf("Validate() error = %v, expectError %v", err, tt.expectError)
+				return
+			}
+			if tt.expectError && err != nil && tt.errorMsg != "" {
+				if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error message to contain '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			}
+		})
 	}
 }

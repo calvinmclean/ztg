@@ -2,8 +2,9 @@ package server
 
 import (
 	"fmt"
-	identitypb "ztg/gen/go/identity/v1"
-	"ztg/identity"
+
+	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	"github.com/calvinmclean/ztg/identity"
 
 	"google.golang.org/protobuf/proto"
 )

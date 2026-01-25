@@ -3,13 +3,14 @@ package factorfight
 import (
 	"context"
 	"fmt"
-	"ztg/factorfight"
-	"ztg/identity"
-	"ztg/server"
 
-	factorfightpb "ztg/gen/go/factorfight/v1"
-	gamepb "ztg/gen/go/game/v1"
-	identitypb "ztg/gen/go/identity/v1"
+	"github.com/calvinmclean/ztg/factorfight"
+	"github.com/calvinmclean/ztg/identity"
+	"github.com/calvinmclean/ztg/server"
+
+	factorfightpb "github.com/calvinmclean/ztg/gen/go/factorfight/v1"
+	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
+	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"

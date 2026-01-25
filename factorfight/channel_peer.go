@@ -2,7 +2,8 @@ package factorfight
 
 import (
 	"context"
-	"ztg/dice"
+
+	"github.com/calvinmclean/ztg/dice"
 )
 
 type ChannelPeer struct {

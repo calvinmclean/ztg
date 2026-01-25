@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"ztg/dice"
+
+	"github.com/calvinmclean/ztg/dice"
 )
 
 // TODO: implement state validation step? This could be useful for detecting bump errors if one player doesn't move a bump correctly

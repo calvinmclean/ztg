@@ -3,11 +3,11 @@ package highroll
 import (
 	"context"
 
-	"ztg/dice"
-	dicepb "ztg/gen/go/dice/v1"
-	gamepb "ztg/gen/go/game/v1"
-	"ztg/identity"
-	"ztg/server"
+	"github.com/calvinmclean/ztg/dice"
+	dicepb "github.com/calvinmclean/ztg/gen/go/dice/v1"
+	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
+	"github.com/calvinmclean/ztg/identity"
+	"github.com/calvinmclean/ztg/server"
 
 	"google.golang.org/grpc"
 )

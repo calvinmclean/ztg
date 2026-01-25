@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"ztg/cmd/challenge"
-	"ztg/cmd/key"
-	"ztg/cmd/server"
+	"github.com/calvinmclean/ztg/cmd/challenge"
+	"github.com/calvinmclean/ztg/cmd/key"
+	"github.com/calvinmclean/ztg/cmd/server"
 
 	"github.com/urfave/cli/v3"
 )

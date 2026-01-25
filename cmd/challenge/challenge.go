@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"ztg/config"
-	gamepb "ztg/gen/go/game/v1"
-	"ztg/grpcutil"
-	"ztg/identity"
-	"ztg/server"
+	"github.com/calvinmclean/ztg/config"
+	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
+	"github.com/calvinmclean/ztg/grpcutil"
+	"github.com/calvinmclean/ztg/identity"
+	"github.com/calvinmclean/ztg/server"
 
 	"github.com/urfave/cli/v3"
 )
@@ -103,7 +103,7 @@ func sendChallenge(ctx context.Context, cmd *cli.Command) error {
 	// Create key manager
 	identityConfig := config.IdentityConfig{
 		ServerAddress:  "owner",
-		PrivateKeyPath: keyPath,
+		PrivateKeyFile: keyPath,
 	}
 
 	km, err := identity.NewKeyManager(identityConfig)
@@ -169,7 +169,7 @@ func createChallenge(ctx context.Context, cmd *cli.Command) error {
 	// Create key manager
 	identityConfig := config.IdentityConfig{
 		ServerAddress:      serverAddr,
-		PrivateKeyPath:     keyPath,
+		PrivateKeyFile:     keyPath,
 		OwnerPublicKeyFile: "keys/example_ed25519.pub.pem",
 	}
 

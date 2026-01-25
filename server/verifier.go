@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	identitypb "ztg/gen/go/identity/v1"
-	"ztg/grpcutil"
+	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	"github.com/calvinmclean/ztg/grpcutil"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"

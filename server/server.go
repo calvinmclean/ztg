@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"ztg/config"
-	gamepb "ztg/gen/go/game/v1"
-	identitypb "ztg/gen/go/identity/v1"
-	"ztg/identity"
+	"github.com/calvinmclean/ztg/config"
+	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
+	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	"github.com/calvinmclean/ztg/identity"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"

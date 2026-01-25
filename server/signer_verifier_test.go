@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"ztg/config"
-	"ztg/identity"
+	"github.com/calvinmclean/ztg/config"
+	"github.com/calvinmclean/ztg/identity"
 
-	identitypb "ztg/gen/go/identity/v1"
+	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
 )
 
 func TestSigner_BasicOperations(t *testing.T) {
 	km, err := identity.NewKeyManager(config.IdentityConfig{
 		ServerName:         "test-server",
 		OwnerName:          "test-owner",
-		PrivateKeyPath:     "../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../keys/example_ed25519.pem",
 		ServerAddress:      "localhost:8080",
 		OwnerPublicKeyFile: "../keys/example_ed25519.pub.pem",
 	})
@@ -73,7 +73,7 @@ func TestVerifier_VerifyMessageSignature(t *testing.T) {
 	km2, err := identity.NewKeyManager(config.IdentityConfig{
 		ServerName:         "test-server",
 		OwnerName:          "test-owner",
-		PrivateKeyPath:     "../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../keys/example_ed25519.pem",
 		ServerAddress:      "localhost:8081",
 		OwnerPublicKeyFile: "../keys/example_ed25519.pub.pem",
 	})
@@ -147,7 +147,7 @@ func TestVerifier_VerifyOrderedSignature(t *testing.T) {
 	km2, err := identity.NewKeyManager(config.IdentityConfig{
 		ServerName:         "test-server",
 		OwnerName:          "test-owner",
-		PrivateKeyPath:     "../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../keys/example_ed25519.pem",
 		ServerAddress:      "localhost:8081",
 		OwnerPublicKeyFile: "../keys/example_ed25519.pub.pem",
 	})
@@ -200,7 +200,7 @@ func TestVerifier_VerifyOrderedSignature(t *testing.T) {
 
 func TestVerifier_AddPeerIdentity(t *testing.T) {
 	km, err := identity.NewKeyManager(config.IdentityConfig{
-		PrivateKeyPath:     "../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../keys/example_ed25519.pem",
 		ServerAddress:      "localhost:8080",
 		OwnerPublicKeyFile: "../keys/example_ed25519.pub.pem",
 	})
@@ -234,7 +234,7 @@ func TestIdentityCacheManager_Expiration(t *testing.T) {
 	cache := NewIdentityCacheManager(10 * time.Millisecond)
 
 	km, err := identity.NewKeyManager(config.IdentityConfig{
-		PrivateKeyPath:     "../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../keys/example_ed25519.pem",
 		ServerAddress:      "localhost:8080",
 		OwnerPublicKeyFile: "../keys/example_ed25519.pub.pem",
 	})
@@ -265,7 +265,7 @@ func TestIdentityCacheManager_Cleanup(t *testing.T) {
 	cache := NewIdentityCacheManager(50 * time.Millisecond)
 
 	km, err := identity.NewKeyManager(config.IdentityConfig{
-		PrivateKeyPath:     "../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../keys/example_ed25519.pem",
 		ServerAddress:      "localhost:8080",
 		OwnerPublicKeyFile: "../keys/example_ed25519.pub.pem",
 	})
@@ -305,7 +305,7 @@ func TestIdentityCacheManager_Cleanup(t *testing.T) {
 
 func TestVerifier_CacheManagement(t *testing.T) {
 	km, err := identity.NewKeyManager(config.IdentityConfig{
-		PrivateKeyPath:     "../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../keys/example_ed25519.pem",
 		ServerAddress:      "localhost:8080",
 		OwnerPublicKeyFile: "../keys/example_ed25519.pub.pem",
 	})
@@ -336,7 +336,7 @@ func TestVerifier_AddressMismatchSecurity(t *testing.T) {
 	km1, err := identity.NewKeyManager(config.IdentityConfig{
 		ServerName:         "test-server",
 		OwnerName:          "test-owner",
-		PrivateKeyPath:     "../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../keys/example_ed25519.pem",
 		ServerAddress:      "localhost:8081",
 		OwnerPublicKeyFile: "../keys/example_ed25519.pub.pem",
 	})
@@ -385,7 +385,7 @@ func TestIdentityCacheManager_GetWithAddressCheck(t *testing.T) {
 	cache := NewIdentityCacheManager(5 * time.Minute)
 
 	km, err := identity.NewKeyManager(config.IdentityConfig{
-		PrivateKeyPath:     "../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../keys/example_ed25519.pem",
 		ServerAddress:      "localhost:8080",
 		OwnerPublicKeyFile: "../keys/example_ed25519.pub.pem",
 	})
@@ -442,7 +442,7 @@ func TestIdentityCacheManager_GetWithAddressCheck(t *testing.T) {
 
 func TestSigner_Verifier_Integration(t *testing.T) {
 	km, err := identity.NewKeyManager(config.IdentityConfig{
-		PrivateKeyPath:     "../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../keys/example_ed25519.pem",
 		ServerAddress:      "localhost:8080",
 		OwnerPublicKeyFile: "../keys/example_ed25519.pub.pem",
 	})
@@ -490,7 +490,7 @@ func TestSigner_Verifier_Integration(t *testing.T) {
 
 func TestVerifier_HashChainVerification(t *testing.T) {
 	km, err := identity.NewKeyManager(config.IdentityConfig{
-		PrivateKeyPath:     "../keys/example_ed25519.pem",
+		PrivateKeyFile:     "../keys/example_ed25519.pem",
 		ServerAddress:      "localhost:8080",
 		OwnerPublicKeyFile: "../keys/example_ed25519.pub.pem",
 	})

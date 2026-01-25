@@ -3,9 +3,9 @@ package server
 import (
 	"context"
 
-	"ztg/config"
-	identitypb "ztg/gen/go/identity/v1"
-	"ztg/identity"
+	"github.com/calvinmclean/ztg/config"
+	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	"github.com/calvinmclean/ztg/identity"
 
 	"google.golang.org/protobuf/types/known/emptypb"
 )
