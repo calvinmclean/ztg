@@ -173,7 +173,7 @@ grep -r "config.Server.Port" --include="*.go" .
 | `OwnerPublicKey` | `owner_public_key` | `ZTG_OWNER_PUBLIC_KEY` | string | "" | Exactly one with file |
 | `OwnerPublicKeyFile` | `owner_public_key_file` | `ZTG_OWNER_PUBLIC_KEY_FILE` | string | "" | Exactly one with key |
 | `PrivateKey` | `private_key` | `ZTG_PRIVATE_KEY` | string | "" | Exactly one with path |
-| `PrivateKeyPath` | `private_key_file` | `ZTG_KEY_FILE` | string | "keys/example_ed25519.pem" | Exactly one with key |
+| `PrivateKeyPath` | `private_key_file` | `ZTG_PRIVATE_KEY_FILE` | string | "keys/example_ed25519.pem" | Exactly one with key |
 | `ServerAddress` | `server_address` | `ZTG_IDENTITY_SERVER_ADDRESS` | string | "" | Required |
 | `ForceExample` | `force_example` | `ZTG_FORCE_EXAMPLE` | bool | false | N/A |
 

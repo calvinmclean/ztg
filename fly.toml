@@ -3,6 +3,9 @@
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
+# WARNING: this fly config is for example/server, not for the main program. This is required because
+# the example server uses a local import instead of github.com/calvinmclean/ztg
+
 app = 'ztg'
 primary_region = 'lax'
 

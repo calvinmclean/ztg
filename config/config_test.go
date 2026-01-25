@@ -6,17 +6,6 @@ import (
 	"testing"
 )
 
-func TestDefaultConfig(t *testing.T) {
-	cfg := DefaultConfig()
-
-	if cfg.Server.Port != 50052 {
-		t.Errorf("Expected port 50052 got '%d'", cfg.Server.Port)
-	}
-	if cfg.Identity.ServerName != "ztg-server" {
-		t.Errorf("Expected server_name 'ztg-server', got '%s'", cfg.Identity.ServerName)
-	}
-}
-
 func TestLoadFromFile(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -74,14 +63,14 @@ func TestLoadFromEnv(t *testing.T) {
 	// Use t.Setenv for test-scoped environment variables
 	t.Setenv("ZTG_PORT", "9999")
 	t.Setenv("ZTG_SERVER_NAME", "env-server")
-	t.Setenv("ZTG_KEY_FILE", "/custom/path/key.pem")
+	t.Setenv("ZTG_PRIVATE_KEY_FILE", "/custom/path/key.pem")
 	t.Setenv("ZTG_PRIVATE_KEY", "test-private-key")
 	t.Setenv("ZTG_OWNER_PUBLIC_KEY", "dGVzdC1wdWJsaWMta2V5")
 	t.Setenv("ZTG_OWNER_PUBLIC_KEY_FILE", "/custom/path/pubkey.pem")
 	// Note: ZTG_STRATEGY not set - should not override existing config
 
-	cfg := DefaultConfig()
-	LoadFromEnv(cfg)
+	cfg := Config{}
+	LoadFromEnv(&cfg)
 
 	if cfg.Server.Port != 9999 {
 		t.Errorf("Expected port 9999 from env, got '%d'", cfg.Server.Port)
@@ -111,11 +100,11 @@ func TestLoadFromEnvPartial(t *testing.T) {
 	t.Setenv("ZTG_SERVER_NAME", "partial-server")
 	// Note: Only server name set, others should preserve defaults
 
-	cfg := DefaultConfig()
+	cfg := Config{}
 	originalAddress := cfg.Server.Port
 	originalKeyPath := cfg.Identity.PrivateKeyFile
 
-	LoadFromEnv(cfg)
+	LoadFromEnv(&cfg)
 
 	// Should override only what's set in env
 	if cfg.Identity.ServerName != "partial-server" {
@@ -162,20 +151,6 @@ func TestLoadFromEnvOverridesCustomConfig(t *testing.T) {
 	// Non-env values should be preserved
 	if cfg.Identity.ServerName != "custom-server" {
 		t.Errorf("Expected server_name 'custom-server' to be preserved, got '%s'", cfg.Identity.ServerName)
-	}
-}
-
-func TestLoadFromEnvInvalid(t *testing.T) {
-	// Test that invalid env values don't crash
-	// Note: ZTG_SIGNED removed since signatures are always required now
-
-	cfg := DefaultConfig()
-
-	LoadFromEnv(cfg)
-
-	// Should work without signed field
-	if cfg.Server.Port != 50052 {
-		t.Errorf("Expected port 50052 to be preserved, got '%d'", cfg.Server.Port)
 	}
 }
 
@@ -260,6 +235,27 @@ func TestConfigValidation(t *testing.T) {
 					OwnerPublicKey:     "test-public-key",
 					OwnerPublicKeyFile: "",
 					PrivateKey:         "",
+					PrivateKeyFile:     "",
+					ServerAddress:      "localhost:8080",
+					ForceExample:       false,
+				},
+			},
+			expectError: true,
+			errorMsg:    "config validation failed",
+		},
+		{
+			name: "invalid config - both OwnerPublicKey and OwnerPublicKeyFile set",
+			config: &Config{
+				Server: ServerConfig{
+					Port:     8080,
+					LogLevel: "debug",
+				},
+				Identity: IdentityConfig{
+					ServerName:         "test-server",
+					OwnerName:          "test-owner",
+					OwnerPublicKey:     "test-public-key",
+					OwnerPublicKeyFile: "test",
+					PrivateKey:         "abc",
 					PrivateKeyFile:     "",
 					ServerAddress:      "localhost:8080",
 					ForceExample:       false,

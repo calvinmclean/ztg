@@ -8,7 +8,6 @@ import (
 	"github.com/calvinmclean/ztg/factorfight"
 	"github.com/calvinmclean/ztg/identity"
 	"github.com/calvinmclean/ztg/server"
-
 	ffserver "github.com/calvinmclean/ztg/server/factorfight"
 	highrollserver "github.com/calvinmclean/ztg/server/highroll"
 
@@ -27,7 +26,18 @@ var Command = &cli.Command{
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		configPath := cmd.String("config")
 
-		cfg := config.DefaultConfig()
+		cfg := &config.Config{
+			Server: config.ServerConfig{
+				Port:     50052,
+				LogLevel: "info",
+			},
+			Identity: config.IdentityConfig{
+				ServerName:     "ztg-server",
+				OwnerName:      "ztg-user",
+				PrivateKeyFile: "keys/example_ed25519.pem",
+				ForceExample:   false,
+			},
+		}
 
 		// Load config file if provided
 		if configPath != "" {

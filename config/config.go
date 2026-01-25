@@ -21,7 +21,7 @@ type IdentityConfig struct {
 	OwnerPublicKey     string `json:"owner_public_key,omitzero" envconfig:"ZTG_OWNER_PUBLIC_KEY"`
 	OwnerPublicKeyFile string `json:"owner_public_key_file,omitzero" envconfig:"ZTG_OWNER_PUBLIC_KEY_FILE"`
 	PrivateKey         string `json:"private_key,omitzero" envconfig:"ZTG_PRIVATE_KEY"`
-	PrivateKeyFile     string `json:"private_key_file,omitzero" envconfig:"ZTG_KEY_FILE"`
+	PrivateKeyFile     string `json:"private_key_file,omitzero" envconfig:"ZTG_PRIVATE_KEY_FILE"`
 	ServerAddress      string `json:"server_address,omitzero" envconfig:"ZTG_IDENTITY_SERVER_ADDRESS"`
 	ForceExample       bool   `json:"force_example,omitzero" envconfig:"ZTG_FORCE_EXAMPLE"`
 }
@@ -58,23 +58,4 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
-}
-
-func DefaultConfig() *Config {
-	return &Config{
-		Server: ServerConfig{
-			Port:     50052,
-			LogLevel: "info",
-		},
-		Identity: IdentityConfig{
-			ServerName:         "ztg-server",
-			OwnerName:          "ztg-user",
-			OwnerPublicKey:     "",                         // Set this to the base64 or hex encoded owner Ed25519 public key
-			OwnerPublicKeyFile: "",                         // Alternatively, set this to a file path containing the owner public key
-			PrivateKey:         "",                         // Set this to the PEM encoded private key string
-			PrivateKeyFile:     "keys/example_ed25519.pem", // Alternatively, set this to a file path containing the private key
-			ServerAddress:      "",
-			ForceExample:       false,
-		},
-	}
 }
