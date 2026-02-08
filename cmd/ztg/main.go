@@ -8,6 +8,7 @@ import (
 	"github.com/calvinmclean/ztg/cmd/challenge"
 	"github.com/calvinmclean/ztg/cmd/key"
 	"github.com/calvinmclean/ztg/cmd/server"
+	"github.com/calvinmclean/ztg/cmd/trust"
 
 	"github.com/urfave/cli/v3"
 )
@@ -20,6 +21,7 @@ func main() {
 			key.Command,
 			challenge.Command,
 			server.Command,
+			trust.Command,
 		},
 	}
 

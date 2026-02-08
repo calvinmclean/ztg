@@ -3,7 +3,7 @@ CREATE TABLE identities (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     public_key BLOB UNIQUE NOT NULL,
     server_address TEXT NOT NULL,
-    server_name TEXT NOT NULL,
+    server_name TEXT UNIQUE NOT NULL,
     owner_name TEXT NOT NULL,
     capabilities TEXT NOT NULL, -- JSON array
     created_at INTEGER NOT NULL,

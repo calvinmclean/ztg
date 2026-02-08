@@ -46,6 +46,11 @@ tasks:
     cmds:
       - go run cmd/ztg/main.go challenge send --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053
 
+  trust1:
+    desc: send a request to dev1 server to challenge dev2 to FactorFight
+    cmds:
+      - go run cmd/ztg/main.go trust send --server localhost:50052 --peer localhost:50053 --trusted
+
   print_challenge:
     cmds:
       - go run cmd/ztg/main.go challenge create --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053

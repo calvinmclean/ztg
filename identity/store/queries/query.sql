@@ -21,7 +21,7 @@ ORDER BY created_at DESC;
 -- name: SetTrustStatus :exec
 UPDATE identities
 SET is_trusted = ?, trust_updated_at = ?
-WHERE public_key = ?;
+WHERE server_address = ?;
 
 -- name: DeleteIdentity :exec
 DELETE FROM identities WHERE public_key = ?;

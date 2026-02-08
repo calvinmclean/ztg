@@ -29,7 +29,7 @@ message ListIdentitiesResponse {
 }
 
 message SetTrustRequest {
-  bytes public_key = 1;
+  string server_address = 1;
   bool trusted = 2;
   Signature signature = 3; // Owner signature for authorization
 }

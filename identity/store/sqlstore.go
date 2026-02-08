@@ -157,7 +157,7 @@ func (s *SQLStore) GetIdentityByKey(ctx context.Context, publicKey []byte) (*ide
 		return nil, fmt.Errorf("failed to get identity by key: %w", err)
 	}
 
-	return s.rowToIdentityWithTrust(&row)
+	return s.rowToIdentity(&row)
 }
 
 // GetIdentityByAddress retrieves an identity by its server address
@@ -170,7 +170,7 @@ func (s *SQLStore) GetIdentityByAddress(ctx context.Context, serverAddress strin
 		return nil, fmt.Errorf("failed to get identity by address: %w", err)
 	}
 
-	return s.rowToIdentityWithTrust(&row)
+	return s.rowToIdentity(&row)
 }
 
 // UpdateLastSeen updates the last seen timestamp for an identity
@@ -195,7 +195,7 @@ func (s *SQLStore) ListIdentities(ctx context.Context) ([]*identitypb.Identity, 
 
 	identities := make([]*identitypb.Identity, len(rows))
 	for i, row := range rows {
-		identity, err := s.rowToIdentityWithTrust(&row)
+		identity, err := s.rowToIdentity(&row)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert row to identity: %w", err)
 		}
@@ -206,14 +206,11 @@ func (s *SQLStore) ListIdentities(ctx context.Context) ([]*identitypb.Identity, 
 }
 
 // SetTrustStatus updates the trust status of an identity
-func (s *SQLStore) SetTrustStatus(ctx context.Context, publicKey []byte, trusted bool, updatedAt time.Time) error {
+func (s *SQLStore) SetTrustStatus(ctx context.Context, serverAddress string, trusted bool, updatedAt time.Time) error {
 	params := sqlc.SetTrustStatusParams{
-		PublicKey: publicKey,
-		IsTrusted: trusted,
-	}
-
-	if trusted {
-		params.TrustUpdatedAt = updatedAt.Unix()
+		ServerAddress:  serverAddress,
+		IsTrusted:      trusted,
+		TrustUpdatedAt: updatedAt.Unix(),
 	}
 
 	err := s.queries.SetTrustStatus(ctx, params)
@@ -318,8 +315,8 @@ func (s *SQLStore) syncChanges(ctx context.Context) error {
 	return nil
 }
 
-// rowToIdentityWithTrust converts a SQLC row to IdentityWithTrust
-func (s *SQLStore) rowToIdentityWithTrust(row *sqlc.Identity) (*identitypb.Identity, error) {
+// rowToIdentity converts a SQLC row to IdentityWithTrust
+func (s *SQLStore) rowToIdentity(row *sqlc.Identity) (*identitypb.Identity, error) {
 	identity := &identitypb.Identity{
 		PublicKey:      row.PublicKey,
 		ServerAddress:  row.ServerAddress,

@@ -164,17 +164,17 @@ func (q *Queries) ListIdentities(ctx context.Context) ([]Identity, error) {
 const setTrustStatus = `-- name: SetTrustStatus :exec
 UPDATE identities
 SET is_trusted = ?, trust_updated_at = ?
-WHERE public_key = ?
+WHERE server_address = ?
 `
 
 type SetTrustStatusParams struct {
 	IsTrusted      bool   `json:"is_trusted"`
 	TrustUpdatedAt int64  `json:"trust_updated_at"`
-	PublicKey      []byte `json:"public_key"`
+	ServerAddress  string `json:"server_address"`
 }
 
 func (q *Queries) SetTrustStatus(ctx context.Context, arg SetTrustStatusParams) error {
-	_, err := q.db.ExecContext(ctx, setTrustStatus, arg.IsTrusted, arg.TrustUpdatedAt, arg.PublicKey)
+	_, err := q.db.ExecContext(ctx, setTrustStatus, arg.IsTrusted, arg.TrustUpdatedAt, arg.ServerAddress)
 	return err
 }
 

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
-	"crypto/sha256"
 	"fmt"
 	"net/url"
 	"time"
@@ -106,7 +105,7 @@ func (s *identityService) ListIdentities(ctx context.Context, req *identitypb.Li
 // SetTrust updates the trust status of an identity (owner only)
 func (s *identityService) SetTrust(ctx context.Context, req *identitypb.SetTrustRequest) (*emptypb.Empty, error) {
 	// Verify owner signature by creating a simple message with the request data
-	message := fmt.Appendf(nil, "set-trust:%x:%v", req.PublicKey, req.Trusted)
+	message := fmt.Appendf(nil, "set-trust:%s:%v", req.ServerAddress, req.Trusted)
 	if err := s.verifyOwnerSignatureBytes(message, req.Signature); err != nil {
 		return nil, status.Errorf(codes.PermissionDenied, "owner signature verification failed: %v", err)
 	}
@@ -117,7 +116,7 @@ func (s *identityService) SetTrust(ctx context.Context, req *identitypb.SetTrust
 	}
 
 	// Update trust status
-	if err := s.store.SetTrustStatus(ctx, req.PublicKey, req.Trusted, time.Now()); err != nil {
+	if err := s.store.SetTrustStatus(ctx, req.ServerAddress, req.Trusted, time.Now()); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to set trust status: %v", err)
 	}
 
@@ -126,23 +125,16 @@ func (s *identityService) SetTrust(ctx context.Context, req *identitypb.SetTrust
 
 // verifyOwnerSignatureBytes verifies that a signature was created by the server owner
 func (s *identityService) verifyOwnerSignatureBytes(message []byte, signature *identitypb.Signature) error {
-	if signature == nil {
-		return fmt.Errorf("signature is required")
+	if signature == nil || len(signature.Signature) == 0 {
+		return fmt.Errorf("owner signature required for Challenge")
 	}
 
-	// Hash the message
-	hash := sha256.Sum256(message)
+	v := NewVerifier(0, s.store)
+	v.AddPeerIdentity("owner", s.keyManager.OwnerPublicKey())
 
-	// Verify with owner's private key (derived from server's public key)
-	ownerPublicKey := s.keyManager.PublicKey()
-	if !ed25519.Verify(ownerPublicKey, hash[:], signature.Signature) {
-		return fmt.Errorf("signature verification failed")
-	}
-
-	// Verify the signer address matches our server address
-	if signature.SignerAddress != s.keyManager.ServerAddress() {
-		return fmt.Errorf("signer address mismatch: expected %s, got %s",
-			s.keyManager.ServerAddress(), signature.SignerAddress)
+	err := v.VerifyMessageSignature(message, signature)
+	if err != nil {
+		return status.Error(codes.PermissionDenied, fmt.Errorf("signature verification failed: %w", err).Error())
 	}
 
 	return nil

@@ -25,7 +25,7 @@ type Store interface {
 	ListIdentities(ctx context.Context) ([]*identitypb.Identity, error)
 
 	// SetTrustStatus updates the trust status of an identity
-	SetTrustStatus(ctx context.Context, publicKey []byte, trusted bool, updatedAt time.Time) error
+	SetTrustStatus(ctx context.Context, serverAddress string, trusted bool, updatedAt time.Time) error
 
 	// DeleteIdentity removes an identity from the store
 	DeleteIdentity(ctx context.Context, publicKey []byte) error
