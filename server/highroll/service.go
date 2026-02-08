@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/calvinmclean/ztg/dice"
-	dicepb "github.com/calvinmclean/ztg/gen/go/dice/v1"
-	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
+	dicepb "github.com/calvinmclean/ztg/gen/go/proto/dice/v1"
+	gamepb "github.com/calvinmclean/ztg/gen/go/proto/game/v1"
 	"github.com/calvinmclean/ztg/identity"
 	"github.com/calvinmclean/ztg/identity/store"
 	"github.com/calvinmclean/ztg/server"

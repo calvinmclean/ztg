@@ -4,7 +4,7 @@ package identity.v1;
 
 import "google/protobuf/empty.proto";
 
-option go_package = "github.com/calvinmclean/ztg/gen/go/identity/v1";
+option go_package = "github.com/calvinmclean/ztg/gen/go/proto/identity/v1";
 
 message Identity {
   bytes public_key = 1;

@@ -3,8 +3,8 @@ package factorfight
 import (
 	"github.com/calvinmclean/ztg/dice"
 	"github.com/calvinmclean/ztg/factorfight"
-	dicepb "github.com/calvinmclean/ztg/gen/go/dice/v1"
-	factorfightpb "github.com/calvinmclean/ztg/gen/go/factorfight/v1"
+	dicepb "github.com/calvinmclean/ztg/gen/go/proto/dice/v1"
+	factorfightpb "github.com/calvinmclean/ztg/gen/go/proto/factorfight/v1"
 )
 
 // convertInternalFactorfightMoveToProto converts factorfight.Move to factorfightpb.Move.

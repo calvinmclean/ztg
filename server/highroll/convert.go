@@ -2,7 +2,7 @@ package highroll
 
 import (
 	"github.com/calvinmclean/ztg/dice"
-	dicepb "github.com/calvinmclean/ztg/gen/go/dice/v1"
+	dicepb "github.com/calvinmclean/ztg/gen/go/proto/dice/v1"
 )
 
 func convertdicepbMessageToInternal(msg *dicepb.Message) dice.Message {

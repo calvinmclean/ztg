@@ -7,8 +7,8 @@ import (
 
 	"github.com/calvinmclean/ztg/config"
 	"github.com/calvinmclean/ztg/factorfight"
-	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
-	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	gamepb "github.com/calvinmclean/ztg/gen/go/proto/game/v1"
+	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
 	"github.com/calvinmclean/ztg/identity"
 	"github.com/calvinmclean/ztg/server"
 	ffserver "github.com/calvinmclean/ztg/server/factorfight"

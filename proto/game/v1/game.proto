@@ -5,7 +5,7 @@ package game.v1;
 // ChallengeRequest is used to tell your server to challenge another server
 import "identity/v1/identity.proto";
 
-option go_package = "github.com/calvinmclean/ztg/gen/go/game/v1";
+option go_package = "github.com/calvinmclean/ztg/gen/go/proto/game/v1";
 
 // A generic empty response message.
 message Empty {}

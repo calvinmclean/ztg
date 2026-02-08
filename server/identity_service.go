@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/calvinmclean/ztg/config"
-	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
 	"github.com/calvinmclean/ztg/identity"
 	"github.com/calvinmclean/ztg/identity/store"
 

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/calvinmclean/ztg/config"
-	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
+	gamepb "github.com/calvinmclean/ztg/gen/go/proto/game/v1"
 	"github.com/calvinmclean/ztg/grpcutil"
 	"github.com/calvinmclean/ztg/identity"
 	"github.com/calvinmclean/ztg/server"

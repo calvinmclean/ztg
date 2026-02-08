@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/pluginpb"
 
-	settersv1 "github.com/calvinmclean/ztg/gen/go/setters/v1"
+	settersv1 "github.com/calvinmclean/ztg/gen/go/proto/setters/v1"
 )
 
 func main() {

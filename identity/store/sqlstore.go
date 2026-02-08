@@ -8,8 +8,9 @@ import (
 	"log"
 	"time"
 
-	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
-	"github.com/calvinmclean/ztg/identity/store/sqlc"
+	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
+	"github.com/calvinmclean/ztg/gen/go/sqlc"
+
 	turso "turso.tech/database/tursogo"
 )
 

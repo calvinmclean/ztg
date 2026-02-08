@@ -6,7 +6,7 @@ import (
 	"slices"
 	"sync"
 
-	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
+	gamepb "github.com/calvinmclean/ztg/gen/go/proto/game/v1"
 
 	"google.golang.org/grpc"
 )

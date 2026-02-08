@@ -10,7 +10,7 @@ import (
 	"github.com/calvinmclean/ztg/identity"
 	"github.com/calvinmclean/ztg/identity/store"
 
-	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
 )
 
 func TestSigner_BasicOperations(t *testing.T) {

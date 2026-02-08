@@ -3,7 +3,7 @@ package server
 import (
 	"fmt"
 
-	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
 	"github.com/calvinmclean/ztg/identity"
 
 	"google.golang.org/protobuf/proto"

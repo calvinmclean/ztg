@@ -9,9 +9,9 @@ import (
 	"github.com/calvinmclean/ztg/identity/store"
 	"github.com/calvinmclean/ztg/server"
 
-	factorfightpb "github.com/calvinmclean/ztg/gen/go/factorfight/v1"
-	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
-	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	factorfightpb "github.com/calvinmclean/ztg/gen/go/proto/factorfight/v1"
+	gamepb "github.com/calvinmclean/ztg/gen/go/proto/game/v1"
+	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"

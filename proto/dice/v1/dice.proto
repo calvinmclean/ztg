@@ -5,7 +5,7 @@ package dice.v1;
 import "identity/v1/identity.proto";
 import "setters/v1/options.proto";
 
-option go_package = "github.com/calvinmclean/ztg/gen/go/dice/v1";
+option go_package = "github.com/calvinmclean/ztg/gen/go/proto/dice/v1";
 
 // MessageType represents the type of the message being sent.
 enum MessageType {

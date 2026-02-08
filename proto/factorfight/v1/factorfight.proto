@@ -6,7 +6,7 @@ import "dice/v1/dice.proto";
 import "identity/v1/identity.proto";
 import "setters/v1/options.proto";
 
-option go_package = "github.com/calvinmclean/ztg/gen/go/factorfight/v1";
+option go_package = "github.com/calvinmclean/ztg/gen/go/proto/factorfight/v1";
 
 // Represents a single PawnMove in the FactorFight game.
 message PawnMove {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/calvinmclean/ztg/dice"
-	dicepb "github.com/calvinmclean/ztg/gen/go/dice/v1"
+	dicepb "github.com/calvinmclean/ztg/gen/go/proto/dice/v1"
 	"github.com/calvinmclean/ztg/server"
 )
 
