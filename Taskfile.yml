@@ -5,8 +5,8 @@ tasks:
     env:
       ZTG_PORT: 50052
       ZTG_IDENTITY_SERVER_ADDRESS: "localhost:50052"
-      # ZTG_DATABASE_PATH: ":memory:"
-      ZTG_DATABASE_PATH: "./server1.db"
+      ZTG_DATABASE_PATH: ":memory:"
+      # ZTG_DATABASE_PATH: "./server1.db"
     cmds:
       - go run cmd/ztg/main.go server
 
@@ -14,8 +14,8 @@ tasks:
     env:
       ZTG_PORT: 50053
       ZTG_IDENTITY_SERVER_ADDRESS: "localhost:50053"
-      # ZTG_DATABASE_PATH: ":memory:"
-      ZTG_DATABASE_PATH: "./server2.db"
+      ZTG_DATABASE_PATH: ":memory:"
+      # ZTG_DATABASE_PATH: "./server2.db"
     cmds:
       - go run cmd/ztg/main.go server
 

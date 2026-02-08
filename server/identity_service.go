@@ -1,10 +1,12 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/calvinmclean/ztg/config"
@@ -49,9 +51,22 @@ func (s *identityService) AddIdentity(ctx context.Context, req *identitypb.AddId
 		return nil, status.Error(codes.Unavailable, "identity store not available")
 	}
 
-	// Check if store is available
-	if s.store == nil {
-		return nil, status.Error(codes.Unavailable, "identity store not available")
+	// Validate public key
+	if len(req.Identity.PublicKey) != ed25519.PublicKeySize {
+		return nil, status.Error(codes.InvalidArgument, "invalid public key size")
+	}
+
+	url, err := url.Parse(req.Identity.ServerAddress)
+	// if there is no error (valid URL), then get the server's Identity and compare
+	if err == nil && url.Host != "" {
+		peerID, err := getPeerIdentity(req.Identity.ServerAddress)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "error getting peer identity: %v", err)
+		}
+
+		if !bytes.Equal(req.Identity.PublicKey, peerID.PublicKey) {
+			return nil, status.Error(codes.InvalidArgument, "provided public key does not match key provided by server")
+		}
 	}
 
 	if req.Identity.CreatedAt != nil {

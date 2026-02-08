@@ -412,7 +412,7 @@ func (v *Verifier) getPeerIdentityFromStoreOrRemote(peerAddr string) (*identityp
 	}
 
 	// Not in store, fetch from gRPC service
-	identity, err := v.getPeerIdentity(peerAddr)
+	identity, err := getPeerIdentity(peerAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +428,7 @@ func (v *Verifier) getPeerIdentityFromStoreOrRemote(peerAddr string) (*identityp
 }
 
 // getPeerIdentity fetches peer identity from their gRPC service
-func (v *Verifier) getPeerIdentity(peerAddr string) (*identitypb.Identity, error) {
+func getPeerIdentity(peerAddr string) (*identitypb.Identity, error) {
 	// Connect to peer's identity service
 	conn, err := grpcutil.NewClient(peerAddr)
 	if err != nil {
