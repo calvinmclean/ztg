@@ -15,7 +15,7 @@ SELECT COUNT(*) as count FROM identities
 WHERE (EXCLUDED.sqlite_arg('trusted_only', false) = false OR is_trusted = ?)
 `
 
-func (q *Queries) CountIdentities(ctx context.Context, isTrusted sql.NullBool) (int64, error) {
+func (q *Queries) CountIdentities(ctx context.Context, isTrusted bool) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countIdentities, isTrusted)
 	var count int64
 	err := row.Scan(&count)
@@ -91,7 +91,7 @@ type InsertIdentityParams struct {
 	Capabilities   sql.NullString `json:"capabilities"`
 	CreatedAt      int64          `json:"created_at"`
 	LastSeen       int64          `json:"last_seen"`
-	IsTrusted      sql.NullBool   `json:"is_trusted"`
+	IsTrusted      bool           `json:"is_trusted"`
 	TrustUpdatedAt sql.NullInt64  `json:"trust_updated_at"`
 }
 
@@ -131,9 +131,9 @@ LIMIT ? OFFSET ?
 `
 
 type ListIdentitiesParams struct {
-	IsTrusted sql.NullBool `json:"is_trusted"`
-	Limit     int64        `json:"limit"`
-	Offset    int64        `json:"offset"`
+	IsTrusted bool  `json:"is_trusted"`
+	Limit     int64 `json:"limit"`
+	Offset    int64 `json:"offset"`
 }
 
 func (q *Queries) ListIdentities(ctx context.Context, arg ListIdentitiesParams) ([]Identity, error) {
@@ -177,7 +177,7 @@ WHERE public_key = ?
 `
 
 type SetTrustStatusParams struct {
-	IsTrusted      sql.NullBool  `json:"is_trusted"`
+	IsTrusted      bool          `json:"is_trusted"`
 	TrustUpdatedAt sql.NullInt64 `json:"trust_updated_at"`
 	PublicKey      []byte        `json:"public_key"`
 }

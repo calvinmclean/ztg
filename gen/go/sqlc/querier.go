@@ -6,11 +6,10 @@ package sqlc
 
 import (
 	"context"
-	"database/sql"
 )
 
 type Querier interface {
-	CountIdentities(ctx context.Context, isTrusted sql.NullBool) (int64, error)
+	CountIdentities(ctx context.Context, isTrusted bool) (int64, error)
 	DeleteIdentity(ctx context.Context, publicKey []byte) error
 	GetIdentityByAddress(ctx context.Context, serverAddress string) (Identity, error)
 	GetIdentityByKey(ctx context.Context, publicKey []byte) (Identity, error)

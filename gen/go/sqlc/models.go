@@ -17,6 +17,6 @@ type Identity struct {
 	Capabilities   sql.NullString `json:"capabilities"`
 	CreatedAt      int64          `json:"created_at"`
 	LastSeen       int64          `json:"last_seen"`
-	IsTrusted      sql.NullBool   `json:"is_trusted"`
+	IsTrusted      bool           `json:"is_trusted"`
 	TrustUpdatedAt sql.NullInt64  `json:"trust_updated_at"`
 }

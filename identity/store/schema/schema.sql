@@ -8,7 +8,7 @@ CREATE TABLE identities (
     capabilities TEXT, -- JSON array
     created_at INTEGER NOT NULL,
     last_seen INTEGER NOT NULL,
-    is_trusted BOOLEAN DEFAULT FALSE,
+    is_trusted BOOLEAN NOT NULL DEFAULT FALSE,
     trust_updated_at INTEGER
 );
 

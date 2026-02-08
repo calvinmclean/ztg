@@ -118,7 +118,7 @@ func runMigrations(ctx context.Context, db *sql.DB) error {
 			capabilities TEXT,
 			created_at INTEGER NOT NULL,
 			last_seen INTEGER NOT NULL,
-			is_trusted BOOLEAN DEFAULT FALSE,
+			is_trusted BOOLEAN NOT NULL DEFAULT FALSE,
 			trust_updated_at INTEGER
 		);
 
@@ -162,8 +162,9 @@ func (s *SQLStore) InsertIdentity(ctx context.Context, identity *IdentityWithTru
 		LastSeen:      now.Unix(),
 	}
 
+	params.IsTrusted = identity.IsTrusted
+
 	if identity.IsTrusted {
-		params.IsTrusted = sql.NullBool{Bool: true, Valid: true}
 		params.TrustUpdatedAt = sql.NullInt64{Int64: now.Unix(), Valid: true}
 	}
 
@@ -216,13 +217,8 @@ func (s *SQLStore) UpdateLastSeen(ctx context.Context, serverAddress string, las
 
 // ListIdentities returns a paginated list of identities
 func (s *SQLStore) ListIdentities(ctx context.Context, trustedOnly bool, pageSize int, offset int) ([]*IdentityWithTrust, error) {
-	var trustedFilter sql.NullBool
-	if trustedOnly {
-		trustedFilter = sql.NullBool{Bool: true, Valid: true}
-	}
-
 	rows, err := s.queries.ListIdentities(ctx, sqlc.ListIdentitiesParams{
-		IsTrusted: trustedFilter,
+		IsTrusted: trustedOnly,
 		Limit:     int64(pageSize),
 		Offset:    int64(offset),
 	})
@@ -246,7 +242,7 @@ func (s *SQLStore) ListIdentities(ctx context.Context, trustedOnly bool, pageSiz
 func (s *SQLStore) SetTrustStatus(ctx context.Context, publicKey []byte, trusted bool, updatedAt time.Time) error {
 	params := sqlc.SetTrustStatusParams{
 		PublicKey: publicKey,
-		IsTrusted: sql.NullBool{Bool: trusted, Valid: true},
+		IsTrusted: trusted,
 	}
 
 	if trusted {
@@ -273,12 +269,7 @@ func (s *SQLStore) DeleteIdentity(ctx context.Context, publicKey []byte) error {
 
 // CountIdentities returns the total count of identities (optionally filtered by trust status)
 func (s *SQLStore) CountIdentities(ctx context.Context, trustedOnly bool) (int64, error) {
-	var trustedFilter sql.NullBool
-	if trustedOnly {
-		trustedFilter = sql.NullBool{Bool: true, Valid: true}
-	}
-
-	count, err := s.queries.CountIdentities(ctx, trustedFilter)
+	count, err := s.queries.CountIdentities(ctx, trustedOnly)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count identities: %w", err)
 	}
@@ -381,9 +372,7 @@ func (s *SQLStore) rowToIdentityWithTrust(row *sqlc.Identity) (*IdentityWithTrus
 
 	result := NewIdentityWithTrust(identity)
 
-	if row.IsTrusted.Valid {
-		result.IsTrusted = row.IsTrusted.Bool
-	}
+	result.IsTrusted = row.IsTrusted
 
 	if row.TrustUpdatedAt.Valid {
 		result.TrustUpdatedAt = time.Unix(row.TrustUpdatedAt.Int64, 0)
