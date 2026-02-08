@@ -4,19 +4,15 @@
 
 package sqlc
 
-import (
-	"database/sql"
-)
-
 type Identity struct {
-	ID             int64          `json:"id"`
-	PublicKey      []byte         `json:"public_key"`
-	ServerAddress  string         `json:"server_address"`
-	ServerName     string         `json:"server_name"`
-	OwnerName      string         `json:"owner_name"`
-	Capabilities   sql.NullString `json:"capabilities"`
-	CreatedAt      int64          `json:"created_at"`
-	LastSeen       int64          `json:"last_seen"`
-	IsTrusted      bool           `json:"is_trusted"`
-	TrustUpdatedAt sql.NullInt64  `json:"trust_updated_at"`
+	ID             int64  `json:"id"`
+	PublicKey      []byte `json:"public_key"`
+	ServerAddress  string `json:"server_address"`
+	ServerName     string `json:"server_name"`
+	OwnerName      string `json:"owner_name"`
+	Capabilities   string `json:"capabilities"`
+	CreatedAt      int64  `json:"created_at"`
+	LastSeen       int64  `json:"last_seen"`
+	IsTrusted      bool   `json:"is_trusted"`
+	TrustUpdatedAt int64  `json:"trust_updated_at"`
 }

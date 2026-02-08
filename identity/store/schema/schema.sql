@@ -5,14 +5,11 @@ CREATE TABLE identities (
     server_address TEXT NOT NULL,
     server_name TEXT NOT NULL,
     owner_name TEXT NOT NULL,
-    capabilities TEXT, -- JSON array
-    -- TODO: make timestamp
+    capabilities TEXT NOT NULL, -- JSON array
     created_at INTEGER NOT NULL,
-    -- TODO: make timestamp
     last_seen INTEGER NOT NULL,
     is_trusted BOOLEAN NOT NULL DEFAULT FALSE,
-    -- TODO: make timestamp
-    trust_updated_at INTEGER
+    trust_updated_at INTEGER NOT NULL
 );
 
 -- Indexes for performance

@@ -14,8 +14,8 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // identityService implements the IdentityService RPC defined in identity.proto.
@@ -38,7 +38,7 @@ func (s *identityService) GetIdentity(ctx context.Context, req *emptypb.Empty) (
 		ServerName:    s.keyManager.ServerName(),
 		OwnerName:     s.keyManager.OwnerName(),
 		Capabilities:  capabilities,
-		CreatedAt:     0,
+		CreatedAt:     timestamppb.Now(),
 	}, nil
 }
 
@@ -52,6 +52,10 @@ func (s *identityService) AddIdentity(ctx context.Context, req *identitypb.AddId
 	// Check if store is available
 	if s.store == nil {
 		return nil, status.Error(codes.Unavailable, "identity store not available")
+	}
+
+	if req.Identity.CreatedAt != nil {
+		req.Identity.CreatedAt = timestamppb.New(time.Now())
 	}
 
 	// Create identity with trust
@@ -88,7 +92,7 @@ func (s *identityService) ListIdentities(ctx context.Context, req *identitypb.Li
 		response.Identities[i] = &identitypb.IdentityWithTrust{
 			Identity:       identity.Identity,
 			IsTrusted:      identity.IsTrusted,
-			TrustUpdatedAt: identity.TrustUpdatedAt.Unix(),
+			TrustUpdatedAt: timestamppb.New(identity.TrustUpdatedAt),
 		}
 	}
 
@@ -98,7 +102,7 @@ func (s *identityService) ListIdentities(ctx context.Context, req *identitypb.Li
 // SetTrust updates the trust status of an identity (owner only)
 func (s *identityService) SetTrust(ctx context.Context, req *identitypb.SetTrustRequest) (*emptypb.Empty, error) {
 	// Verify owner signature by creating a simple message with the request data
-	message := []byte(fmt.Sprintf("set-trust:%x:%v", req.PublicKey, req.Trusted))
+	message := fmt.Appendf(nil, "set-trust:%x:%v", req.PublicKey, req.Trusted)
 	if err := s.verifyOwnerSignatureBytes(message, req.Signature); err != nil {
 		return nil, status.Errorf(codes.PermissionDenied, "owner signature verification failed: %v", err)
 	}
@@ -114,21 +118,6 @@ func (s *identityService) SetTrust(ctx context.Context, req *identitypb.SetTrust
 	}
 
 	return &emptypb.Empty{}, nil
-}
-
-// verifyOwnerSignature verifies that a signature was created by the server owner
-func (s *identityService) verifyOwnerSignature(msg proto.Message, signature *identitypb.Signature) error {
-	if signature == nil {
-		return fmt.Errorf("signature is required")
-	}
-
-	// Serialize the message
-	msgBytes, err := proto.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("failed to marshal message: %w", err)
-	}
-
-	return s.verifyOwnerSignatureBytes(msgBytes, signature)
 }
 
 // verifyOwnerSignatureBytes verifies that a signature was created by the server owner

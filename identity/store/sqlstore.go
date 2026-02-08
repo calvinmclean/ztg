@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,9 +11,13 @@ import (
 
 	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
 	"github.com/calvinmclean/ztg/gen/go/sqlc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	turso "turso.tech/database/tursogo"
 )
+
+//go:embed schema/*.sql
+var schemaFS embed.FS
 
 // SQLStore implements the Store interface using SQLC-generated code with Turso
 type SQLStore struct {
@@ -106,33 +111,16 @@ func runMigrations(ctx context.Context, db *sql.DB) error {
 	err := db.QueryRowContext(ctx,
 		"SELECT name FROM sqlite_master WHERE type='table' AND name='identities'").Scan(&result.name)
 	if err == sql.ErrNoRows {
-		// Table doesn't exist, create it
-		log.Println("Creating identities table...")
-		schema := `
-		CREATE TABLE identities (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			public_key BLOB UNIQUE NOT NULL,
-			server_address TEXT NOT NULL,
-			server_name TEXT NOT NULL,
-			owner_name TEXT NOT NULL,
-			capabilities TEXT,
-			created_at INTEGER NOT NULL,
-			last_seen INTEGER NOT NULL,
-			is_trusted BOOLEAN NOT NULL DEFAULT FALSE,
-			trust_updated_at INTEGER
-		);
+		schemaContent, err := schemaFS.ReadFile("schema/schema.sql")
+		if err != nil {
+			return fmt.Errorf("failed to read schema file: %w", err)
+		}
 
-		CREATE INDEX idx_identities_public_key ON identities(public_key);
-		CREATE INDEX idx_identities_server_address ON identities(server_address);
-		`
-		if _, err := db.ExecContext(ctx, schema); err != nil {
+		if _, err := db.ExecContext(ctx, string(schemaContent)); err != nil {
 			return fmt.Errorf("failed to create table: %w", err)
 		}
-		log.Println("Identities table created successfully")
 	} else if err != nil {
 		return fmt.Errorf("failed to check table existence: %w", err)
-	} else {
-		log.Println("Identities table already exists")
 	}
 
 	return nil
@@ -143,32 +131,24 @@ func (s *SQLStore) InsertIdentity(ctx context.Context, identity *IdentityWithTru
 	now := time.Now()
 
 	// Convert capabilities to JSON string
-	var capabilities sql.NullString
-	if len(identity.GetCapabilities()) > 0 {
-		capJSON, err := json.Marshal(identity.GetCapabilities())
-		if err != nil {
-			return fmt.Errorf("failed to marshal capabilities: %w", err)
-		}
-		capabilities = sql.NullString{String: string(capJSON), Valid: true}
+	capJSON, err := json.Marshal(identity.GetCapabilities())
+	if err != nil {
+		return fmt.Errorf("failed to marshal capabilities: %w", err)
 	}
 
 	params := sqlc.InsertIdentityParams{
-		PublicKey:     identity.GetPublicKey(),
-		ServerAddress: identity.GetServerAddress(),
-		ServerName:    identity.GetServerName(),
-		OwnerName:     identity.GetOwnerName(),
-		Capabilities:  capabilities,
-		CreatedAt:     now.Unix(),
-		LastSeen:      now.Unix(),
+		PublicKey:      identity.GetPublicKey(),
+		ServerAddress:  identity.GetServerAddress(),
+		ServerName:     identity.GetServerName(),
+		OwnerName:      identity.GetOwnerName(),
+		Capabilities:   string(capJSON),
+		CreatedAt:      now.Unix(),
+		LastSeen:       now.Unix(),
+		TrustUpdatedAt: now.Unix(),
+		IsTrusted:      identity.IsTrusted,
 	}
 
-	params.IsTrusted = identity.IsTrusted
-
-	if identity.IsTrusted {
-		params.TrustUpdatedAt = sql.NullInt64{Int64: now.Unix(), Valid: true}
-	}
-
-	_, err := s.queries.InsertIdentity(ctx, params)
+	_, err = s.queries.InsertIdentity(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to insert identity: %w", err)
 	}
@@ -242,7 +222,7 @@ func (s *SQLStore) SetTrustStatus(ctx context.Context, publicKey []byte, trusted
 	}
 
 	if trusted {
-		params.TrustUpdatedAt = sql.NullInt64{Int64: updatedAt.Unix(), Valid: true}
+		params.TrustUpdatedAt = updatedAt.Unix()
 	}
 
 	err := s.queries.SetTrustStatus(ctx, params)
@@ -354,13 +334,13 @@ func (s *SQLStore) rowToIdentityWithTrust(row *sqlc.Identity) (*IdentityWithTrus
 		ServerAddress: row.ServerAddress,
 		ServerName:    row.ServerName,
 		OwnerName:     row.OwnerName,
-		CreatedAt:     row.CreatedAt,
+		CreatedAt:     timestamppb.New(time.Unix(row.CreatedAt, 0)),
 	}
 
 	// Parse capabilities JSON if present
-	if row.Capabilities.Valid {
-		var capabilities []string
-		if err := json.Unmarshal([]byte(row.Capabilities.String), &capabilities); err != nil {
+	var capabilities []string
+	if row.Capabilities != "" {
+		if err := json.Unmarshal([]byte(row.Capabilities), &capabilities); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal capabilities: %w", err)
 		}
 		identity.Capabilities = capabilities
@@ -369,10 +349,7 @@ func (s *SQLStore) rowToIdentityWithTrust(row *sqlc.Identity) (*IdentityWithTrus
 	result := NewIdentityWithTrust(identity)
 
 	result.IsTrusted = row.IsTrusted
-
-	if row.TrustUpdatedAt.Valid {
-		result.TrustUpdatedAt = time.Unix(row.TrustUpdatedAt.Int64, 0)
-	}
+	result.TrustUpdatedAt = time.Unix(row.TrustUpdatedAt, 0)
 
 	return result, nil
 }

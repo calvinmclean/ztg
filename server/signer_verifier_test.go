@@ -360,7 +360,6 @@ func TestVerifier_AddressMismatchSecurity(t *testing.T) {
 		ServerName:    "fake-server",
 		OwnerName:     "fake-owner",
 		Capabilities:  []string{"test"},
-		CreatedAt:     0,
 	}
 
 	// Cache fake identity
@@ -406,7 +405,6 @@ func TestIdentityCacheManager_GetWithAddressCheck(t *testing.T) {
 		ServerName:    "test-server",
 		OwnerName:     "test-owner",
 		Capabilities:  []string{"test"},
-		CreatedAt:     0,
 	}
 
 	// Cache valid identity
@@ -428,7 +426,6 @@ func TestIdentityCacheManager_GetWithAddressCheck(t *testing.T) {
 		ServerName:    "test-server",
 		OwnerName:     "test-owner",
 		Capabilities:  []string{"test"},
-		CreatedAt:     0,
 	}
 
 	// Cache mismatched identity

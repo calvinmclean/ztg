@@ -3,6 +3,7 @@ syntax = "proto3";
 package identity.v1;
 
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/calvinmclean/ztg/gen/go/proto/identity/v1";
 
@@ -12,15 +13,13 @@ message Identity {
   string server_name = 3;
   string owner_name = 4;
   repeated string capabilities = 5;
-  // TODO: make timestamp
-  int64 created_at = 6;
+  google.protobuf.Timestamp created_at = 6;
 }
 
 message IdentityWithTrust {
   Identity identity = 1;
   bool is_trusted = 2;
-  // TODO: make timestamp
-  int64 trust_updated_at = 3;
+  google.protobuf.Timestamp trust_updated_at = 3;
 }
 
 message AddIdentityRequest {

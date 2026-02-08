@@ -7,7 +7,6 @@ package sqlc
 
 import (
 	"context"
-	"database/sql"
 )
 
 const countIdentities = `-- name: CountIdentities :one
@@ -84,15 +83,15 @@ RETURNING id, public_key, server_address, server_name, owner_name, capabilities,
 `
 
 type InsertIdentityParams struct {
-	PublicKey      []byte         `json:"public_key"`
-	ServerAddress  string         `json:"server_address"`
-	ServerName     string         `json:"server_name"`
-	OwnerName      string         `json:"owner_name"`
-	Capabilities   sql.NullString `json:"capabilities"`
-	CreatedAt      int64          `json:"created_at"`
-	LastSeen       int64          `json:"last_seen"`
-	IsTrusted      bool           `json:"is_trusted"`
-	TrustUpdatedAt sql.NullInt64  `json:"trust_updated_at"`
+	PublicKey      []byte `json:"public_key"`
+	ServerAddress  string `json:"server_address"`
+	ServerName     string `json:"server_name"`
+	OwnerName      string `json:"owner_name"`
+	Capabilities   string `json:"capabilities"`
+	CreatedAt      int64  `json:"created_at"`
+	LastSeen       int64  `json:"last_seen"`
+	IsTrusted      bool   `json:"is_trusted"`
+	TrustUpdatedAt int64  `json:"trust_updated_at"`
 }
 
 func (q *Queries) InsertIdentity(ctx context.Context, arg InsertIdentityParams) (Identity, error) {
@@ -169,9 +168,9 @@ WHERE public_key = ?
 `
 
 type SetTrustStatusParams struct {
-	IsTrusted      bool          `json:"is_trusted"`
-	TrustUpdatedAt sql.NullInt64 `json:"trust_updated_at"`
-	PublicKey      []byte        `json:"public_key"`
+	IsTrusted      bool   `json:"is_trusted"`
+	TrustUpdatedAt int64  `json:"trust_updated_at"`
+	PublicKey      []byte `json:"public_key"`
 }
 
 func (q *Queries) SetTrustStatus(ctx context.Context, arg SetTrustStatusParams) error {
