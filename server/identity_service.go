@@ -43,11 +43,11 @@ func (s *identityService) GetIdentity(ctx context.Context, req *emptypb.Empty) (
 	}, nil
 }
 
-// AddIdentity adds a new identity to the store (owner only)
+// AddIdentity adds a new identity to the store
 func (s *identityService) AddIdentity(ctx context.Context, req *identitypb.AddIdentityRequest) (*emptypb.Empty, error) {
-	// Verify owner signature
-	if err := s.verifyOwnerSignature(req.Identity, req.Signature); err != nil {
-		return nil, status.Errorf(codes.PermissionDenied, "owner signature verification failed: %v", err)
+	// Check if store is available
+	if s.store == nil {
+		return nil, status.Error(codes.Unavailable, "identity store not available")
 	}
 
 	// Check if store is available
@@ -67,10 +67,8 @@ func (s *identityService) AddIdentity(ctx context.Context, req *identitypb.AddId
 	return &emptypb.Empty{}, nil
 }
 
-// ListIdentities returns a paginated list of identities (owner only)
+// ListIdentities returns a paginated list of identities
 func (s *identityService) ListIdentities(ctx context.Context, req *identitypb.ListIdentitiesRequest) (*identitypb.ListIdentitiesResponse, error) {
-	// TODO: Add owner signature verification for this method
-
 	// Check if store is available
 	if s.store == nil {
 		return nil, status.Error(codes.Unavailable, "identity store not available")

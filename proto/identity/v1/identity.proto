@@ -23,7 +23,6 @@ message IdentityWithTrust {
 
 message AddIdentityRequest {
   Identity identity = 1;
-  Signature signature = 2; // Owner signature for authorization
 }
 
 message ListIdentitiesRequest {
@@ -40,7 +39,7 @@ message ListIdentitiesResponse {
 message SetTrustRequest {
   bytes public_key = 1;
   bool trusted = 2;
-  Signature signature = 3; // Owner signature
+  Signature signature = 3; // Owner signature for authorization
 }
 
 message Signature {
