@@ -6,6 +6,7 @@ import (
 
 	"github.com/calvinmclean/ztg/factorfight"
 	"github.com/calvinmclean/ztg/identity"
+	"github.com/calvinmclean/ztg/identity/store"
 	"github.com/calvinmclean/ztg/server"
 
 	factorfightpb "github.com/calvinmclean/ztg/gen/go/factorfight/v1"
@@ -33,14 +34,16 @@ type Service struct {
 	cfg        Config
 	keyManager *identity.KeyManager
 	serverAddr string
+	store      store.Store // SQL store for persistent identity storage
 }
 
 // NewService creates a new FactorFight service.
-func NewService(cfg Config, keyManager *identity.KeyManager, serverAddr string) *Service {
+func NewService(cfg Config, keyManager *identity.KeyManager, serverAddr string, sqlStore store.Store) *Service {
 	return &Service{
 		cfg:        cfg,
 		keyManager: keyManager,
 		serverAddr: serverAddr,
+		store:      sqlStore,
 	}
 }
 
@@ -54,7 +57,7 @@ func (s *Service) Register(server *grpc.Server) {
 
 // StreamGame handles the gRPC streaming communication.
 func (s *Service) Play(stream factorfightpb.FactorFightService_PlayServer) error {
-	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr)
+	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr, s.store)
 
 	factorfightPeer := createFactorfightPeer(stream, signer, verifier)
 
@@ -91,7 +94,7 @@ func (s *Service) Challenge(ctx context.Context, conn *grpc.ClientConn) (*gamepb
 		return nil, fmt.Errorf("failed to get peer identity: %w", err)
 	}
 
-	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr)
+	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr, s.store)
 
 	// Cache the peer's public key for signature verification
 	verifier.AddPeerIdentity(conn.Target(), peerIdentity.PublicKey)

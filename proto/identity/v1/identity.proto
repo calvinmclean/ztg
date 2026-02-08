@@ -15,6 +15,34 @@ message Identity {
   int64 created_at = 6;
 }
 
+message IdentityWithTrust {
+  Identity identity = 1;
+  bool is_trusted = 2;
+  int64 trust_updated_at = 3;
+}
+
+message AddIdentityRequest {
+  Identity identity = 1;
+  Signature signature = 2; // Owner signature for authorization
+}
+
+message ListIdentitiesRequest {
+  bool trusted_only = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListIdentitiesResponse {
+  repeated IdentityWithTrust identities = 1;
+  string next_page_token = 2;
+}
+
+message SetTrustRequest {
+  bytes public_key = 1;
+  bool trusted = 2;
+  Signature signature = 3; // Owner signature
+}
+
 message Signature {
   bytes signature = 1;
   string signer_address = 2;
@@ -29,4 +57,7 @@ message OrderedSignature {
 
 service IdentityService {
   rpc GetIdentity(google.protobuf.Empty) returns (Identity);
+  rpc AddIdentity(AddIdentityRequest) returns (google.protobuf.Empty);
+  rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse);
+  rpc SetTrust(SetTrustRequest) returns (google.protobuf.Empty);
 }

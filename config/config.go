@@ -26,9 +26,19 @@ type IdentityConfig struct {
 	ForceExample       bool   `json:"force_example,omitzero" envconfig:"ZTG_FORCE_EXAMPLE"`
 }
 
+type DatabaseConfig struct {
+	DatabaseURL                string `json:"database_url,omitzero" envconfig:"ZTG_DATABASE_URL"`
+	DatabaseAuthToken          string `json:"database_auth_token,omitzero" envconfig:"ZTG_DATABASE_AUTH_TOKEN"`
+	DatabasePath               string `json:"database_path,omitzero" envconfig:"ZTG_DATABASE_PATH"`
+	DatabaseLongPollTimeoutMs  int    `json:"database_long_poll_timeout_ms,omitzero" envconfig:"ZTG_DATABASE_LONG_POLL_TIMEOUT_MS"`
+	DatabaseBootstrapIfEmpty   bool   `json:"database_bootstrap_if_empty,omitzero" envconfig:"ZTG_DATABASE_BOOTSTRAP_IF_EMPTY"`
+	DatabaseUseEmbeddedReplica bool   `json:"database_use_embedded_replica,omitzero" envconfig:"ZTG_DATABASE_USE_EMBEDDED_REPLICA"`
+}
+
 type Config struct {
 	Server   ServerConfig   `json:"server,omitzero"`
 	Identity IdentityConfig `json:"identity,omitzero"`
+	Database DatabaseConfig `json:"database,omitzero"`
 }
 
 func (c *Config) Validate() error {

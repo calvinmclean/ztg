@@ -13,6 +13,7 @@ import (
 	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
 	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
 	"github.com/calvinmclean/ztg/identity"
+	"github.com/calvinmclean/ztg/identity/store"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -49,16 +50,37 @@ type Server struct {
 	cancel   context.CancelFunc
 	registry *registry
 	logger   *slog.Logger
+	store    store.Store // SQL store for persistent identity storage
 }
 
 // NewServer initializes a new GRPC server.
-func NewServer(serverConfig config.ServerConfig, keyManager *identity.KeyManager) (*Server, error) {
+func NewServer(serverConfig config.ServerConfig, databaseConfig config.DatabaseConfig, keyManager *identity.KeyManager) (*Server, error) {
 	logLevel := parseLogLevel(serverConfig.LogLevel)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 	logger.Debug("initializing new server", "port", serverConfig.Port, "log_level", serverConfig.LogLevel)
 
 	if err := identity.ValidateKeyUsage(keyManager.PublicKey()); err != nil {
 		return nil, err
+	}
+
+	// Initialize SQL store if database is configured
+	var sqlStore store.Store
+	if databaseConfig.DatabasePath != "" || databaseConfig.DatabaseURL != "" {
+		storeConfig := store.Config{
+			DatabaseURL:               databaseConfig.DatabaseURL,
+			DatabaseAuthToken:         databaseConfig.DatabaseAuthToken,
+			DatabasePath:              databaseConfig.DatabasePath,
+			DatabaseLongPollTimeoutMs: databaseConfig.DatabaseLongPollTimeoutMs,
+			DatabaseBootstrapIfEmpty:  databaseConfig.DatabaseBootstrapIfEmpty,
+			UseEmbeddedReplica:        databaseConfig.DatabaseUseEmbeddedReplica,
+		}
+
+		var err error
+		sqlStore, err = store.NewSQLStore(storeConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize SQL store: %w", err)
+		}
+		logger.Info("initialized SQL identity store", "path", databaseConfig.DatabasePath, "url", databaseConfig.DatabaseURL)
 	}
 
 	addr := fmt.Sprintf(":%d", serverConfig.Port)
@@ -75,11 +97,13 @@ func NewServer(serverConfig config.ServerConfig, keyManager *identity.KeyManager
 		serverAddr:   keyManager.ServerAddress(),
 		registry:     registry,
 		logger:       logger,
+		store:        sqlStore,
 	})
 	identitypb.RegisterIdentityServiceServer(server, &identityService{
 		keyManager:   keyManager,
 		serverConfig: serverConfig,
 		registry:     registry,
+		store:        sqlStore,
 	})
 
 	reflection.Register(server)
@@ -93,6 +117,7 @@ func NewServer(serverConfig config.ServerConfig, keyManager *identity.KeyManager
 		cancel:   cancel,
 		registry: registry,
 		logger:   logger,
+		store:    sqlStore,
 	}, nil
 }
 
@@ -107,9 +132,22 @@ func (s *Server) Run() error {
 	return s.server.Serve(s.listener)
 }
 
+// GetStore returns the SQL store for use by game services
+func (s *Server) GetStore() store.Store {
+	return s.store
+}
+
 // Stop gracefully stops the gRPC server.
 func (s *Server) Stop() {
 	s.logger.Info("stopping gRPC server")
 	s.cancel()
+
+	// Close SQL store if initialized
+	if s.store != nil {
+		if err := s.store.Close(); err != nil {
+			s.logger.Error("error closing SQL store", "error", err)
+		}
+	}
+
 	s.server.GracefulStop()
 }

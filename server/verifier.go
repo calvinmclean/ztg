@@ -11,6 +11,7 @@ import (
 
 	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
 	"github.com/calvinmclean/ztg/grpcutil"
+	"github.com/calvinmclean/ztg/identity/store"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -239,13 +240,15 @@ func (cm *IdentityCacheManager) Cleanup() {
 type Verifier struct {
 	identityCache *IdentityCacheManager
 	hashChain     *HashChainManager
+	store         store.Store // Optional SQL store for persistent identity storage
 }
 
 // NewVerifier creates a new Verifier instance
-func NewVerifier(ttl time.Duration) *Verifier {
+func NewVerifier(ttl time.Duration, sqlStore store.Store) *Verifier {
 	return &Verifier{
 		identityCache: NewIdentityCacheManager(ttl),
 		hashChain:     NewHashChainManager(ttl),
+		store:         sqlStore,
 	}
 }
 
@@ -274,8 +277,8 @@ func (v *Verifier) VerifyMessageSignature(message []byte, signature *identitypb.
 		return nil
 	}
 
-	// Not cached: fetch fresh identity and verify
-	peerIdentity, err := v.getPeerIdentity(signature.SignerAddress)
+	// Not cached: try SQL store first, then fetch fresh identity
+	peerIdentity, err := v.getPeerIdentityFromStoreOrRemote(signature.SignerAddress)
 	if err != nil {
 		return fmt.Errorf("failed to fetch peer identity: %w", err)
 	}
@@ -333,8 +336,8 @@ func (v *Verifier) VerifyOrderedSignature(message []byte, signature *identitypb.
 		return nil
 	}
 
-	// Not cached: fetch fresh identity and verify
-	peerIdentity, err := v.getPeerIdentity(signature.SignerAddress)
+	// Not cached: try SQL store first, then fetch fresh identity
+	peerIdentity, err := v.getPeerIdentityFromStoreOrRemote(signature.SignerAddress)
 	if err != nil {
 		return fmt.Errorf("failed to fetch peer identity: %w", err)
 	}
@@ -395,6 +398,35 @@ func (v *Verifier) VerifySignatureProto(msg proto.Message, signature *identitypb
 	}
 
 	return v.VerifyMessageSignature(msgBytes, signature)
+}
+
+// getPeerIdentityFromStoreOrRemote fetches peer identity from SQL store first, then gRPC service if not found
+func (v *Verifier) getPeerIdentityFromStoreOrRemote(peerAddr string) (*identitypb.Identity, error) {
+	// Try SQL store first if available
+	if v.store != nil {
+		if identity, err := v.store.GetIdentityByAddress(context.Background(), peerAddr); err == nil {
+			// Found in store, update last seen
+			v.store.UpdateLastSeen(context.Background(), peerAddr, time.Now())
+			return identity.Identity, nil
+		}
+	}
+
+	// Not in store, fetch from gRPC service
+	identity, err := v.getPeerIdentity(peerAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the fetched identity for future use (write-through)
+	if v.store != nil {
+		identityWithTrust := store.NewIdentityWithTrust(identity)
+		if err := v.store.InsertIdentity(context.Background(), identityWithTrust); err != nil {
+			// Log error but don't fail the operation
+			fmt.Printf("Warning: failed to store identity for %s: %v\n", peerAddr, err)
+		}
+	}
+
+	return identity, nil
 }
 
 // getPeerIdentity fetches peer identity from their gRPC service

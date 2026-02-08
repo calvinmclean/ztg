@@ -56,7 +56,7 @@ func TestTwoServerChallenge(t *testing.T) {
 			p1WinResult = &win
 		},
 	}
-	ffserver1 := ffserver.NewService(factorFightConfig1, km1, "localhost:50052")
+	ffserver1 := ffserver.NewService(factorFightConfig1, km1, "localhost:50052", nil)
 
 	var p2WinResult *bool
 	serverConfig2 := config.ServerConfig{
@@ -69,16 +69,20 @@ func TestTwoServerChallenge(t *testing.T) {
 			p2WinResult = &win
 		},
 	}
-	ffserver2 := ffserver.NewService(factorFightConfig2, km2, "localhost:50053")
+	ffserver2 := ffserver.NewService(factorFightConfig2, km2, "localhost:50053", nil)
+
+	// Create database configs (empty for tests)
+	dbConfig1 := config.DatabaseConfig{}
+	dbConfig2 := config.DatabaseConfig{}
 
 	// Create servers
-	server1, err := server.NewServer(serverConfig1, km1)
+	server1, err := server.NewServer(serverConfig1, dbConfig1, km1)
 	if err != nil {
 		t.Fatalf("Failed to create server 1: %v", err)
 	}
 	server1.Register(ffserver1)
 
-	server2, err := server.NewServer(serverConfig2, km2)
+	server2, err := server.NewServer(serverConfig2, dbConfig2, km2)
 	if err != nil {
 		t.Fatalf("Failed to create server 2: %v", err)
 	}
@@ -183,9 +187,9 @@ func TestChallengeAuthorization(t *testing.T) {
 			t.Logf("Auth Test - Win: %v, Log: %v", win, log)
 		},
 	}
-	ffserver := ffserver.NewService(factorFightConfig, km, "localhost:50054")
+	ffserver := ffserver.NewService(factorFightConfig, km, "localhost:50054", nil)
 
-	srv, err := server.NewServer(serverConfig, km)
+	srv, err := server.NewServer(serverConfig, config.DatabaseConfig{}, km)
 	if err != nil {
 		t.Fatalf("Failed to create server: %v", err)
 	}

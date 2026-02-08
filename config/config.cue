@@ -33,5 +33,15 @@ package config
 	force_example!:  bool | *false
 }
 
+#Database: {
+	database_url:                string | *""
+	database_auth_token:         string | *""
+	database_path:               string | *":memory:"
+	database_long_poll_timeout_ms: int  | *10000
+	database_bootstrap_if_empty:  bool | *true
+	database_use_embedded_replica: bool | *false
+}
+
 server!:   #Server
 identity!: #Identity
+database!: #Database

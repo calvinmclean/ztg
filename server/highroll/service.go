@@ -7,6 +7,7 @@ import (
 	dicepb "github.com/calvinmclean/ztg/gen/go/dice/v1"
 	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
 	"github.com/calvinmclean/ztg/identity"
+	"github.com/calvinmclean/ztg/identity/store"
 	"github.com/calvinmclean/ztg/server"
 
 	"google.golang.org/grpc"
@@ -18,12 +19,14 @@ type Service struct {
 	dicepb.UnimplementedDiceServiceServer
 	keyManager *identity.KeyManager
 	serverAddr string
+	store      store.Store // SQL store for persistent identity storage
 }
 
-func NewService(keyManager *identity.KeyManager, serverAddr string) *Service {
+func NewService(keyManager *identity.KeyManager, serverAddr string, sqlStore store.Store) *Service {
 	return &Service{
 		keyManager: keyManager,
 		serverAddr: serverAddr,
+		store:      sqlStore,
 	}
 }
 
@@ -42,7 +45,7 @@ func (s *Service) Challenge(ctx context.Context, conn *grpc.ClientConn) (*gamepb
 	if err != nil {
 		return nil, err
 	}
-	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr)
+	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr, s.store)
 	highrollPeer := newPeer(stream, signer, verifier)
 	roller, err := newRoller(highrollPeer, server.DefaultDieSides)
 	if err != nil {
@@ -63,7 +66,7 @@ func (s *Service) Challenge(ctx context.Context, conn *grpc.ClientConn) (*gamepb
 
 // gRPC implementation for rolling dice
 func (s *Service) Roll(stream dicepb.DiceService_RollServer) error {
-	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr)
+	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr, s.store)
 	highrollPeer := newPeer(stream, signer, verifier)
 	roller, err := newRoller(highrollPeer, server.DefaultDieSides)
 	if err != nil {

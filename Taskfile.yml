@@ -26,6 +26,7 @@ tasks:
   generate:
     cmds:
       - buf generate
+      - sqlc generate
 
   validate_config_testdata:
     cmds:

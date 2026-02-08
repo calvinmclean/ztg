@@ -66,7 +66,7 @@ var Command = &cli.Command{
 			return fmt.Errorf("failed to initialize key manager: %w", err)
 		}
 
-		grpcServer, err := server.NewServer(cfg.Server, keyManager)
+		grpcServer, err := server.NewServer(cfg.Server, cfg.Database, keyManager)
 		if err != nil {
 			return fmt.Errorf("server initialization failed: %w", err)
 		}
@@ -78,10 +78,13 @@ var Command = &cli.Command{
 				fmt.Println(log)
 			},
 		}
-		ffService := ffserver.NewService(ffCfg, keyManager, cfg.Identity.ServerAddress)
+		// Get the SQL store from the gRPC server for game services
+		sqlStore := grpcServer.GetStore()
+
+		ffService := ffserver.NewService(ffCfg, keyManager, cfg.Identity.ServerAddress, sqlStore)
 		grpcServer.Register(ffService)
 
-		highrollService := highrollserver.NewService(keyManager, cfg.Identity.ServerAddress)
+		highrollService := highrollserver.NewService(keyManager, cfg.Identity.ServerAddress, sqlStore)
 		grpcServer.Register(highrollService)
 
 		grpcServer.Run()
