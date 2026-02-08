@@ -14,12 +14,8 @@ message Identity {
   string owner_name = 4;
   repeated string capabilities = 5;
   google.protobuf.Timestamp created_at = 6;
-}
-
-message IdentityWithTrust {
-  Identity identity = 1;
-  bool is_trusted = 2;
-  google.protobuf.Timestamp trust_updated_at = 3;
+  bool is_trusted = 7;
+  google.protobuf.Timestamp trust_updated_at = 8;
 }
 
 message AddIdentityRequest {
@@ -29,8 +25,7 @@ message AddIdentityRequest {
 message ListIdentitiesRequest {}
 
 message ListIdentitiesResponse {
-  repeated IdentityWithTrust identities = 1;
-  string next_page_token = 2;
+  repeated Identity identities = 1;
 }
 
 message SetTrustRequest {

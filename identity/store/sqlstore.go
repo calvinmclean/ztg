@@ -127,7 +127,7 @@ func runMigrations(ctx context.Context, db *sql.DB) error {
 }
 
 // InsertIdentity adds a new identity to the store
-func (s *SQLStore) InsertIdentity(ctx context.Context, identity *IdentityWithTrust) error {
+func (s *SQLStore) InsertIdentity(ctx context.Context, identity *identitypb.Identity) error {
 	now := time.Now()
 
 	// Convert capabilities to JSON string
@@ -157,7 +157,7 @@ func (s *SQLStore) InsertIdentity(ctx context.Context, identity *IdentityWithTru
 }
 
 // GetIdentityByKey retrieves an identity by its public key
-func (s *SQLStore) GetIdentityByKey(ctx context.Context, publicKey []byte) (*IdentityWithTrust, error) {
+func (s *SQLStore) GetIdentityByKey(ctx context.Context, publicKey []byte) (*identitypb.Identity, error) {
 	row, err := s.queries.GetIdentityByKey(ctx, publicKey)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -170,7 +170,7 @@ func (s *SQLStore) GetIdentityByKey(ctx context.Context, publicKey []byte) (*Ide
 }
 
 // GetIdentityByAddress retrieves an identity by its server address
-func (s *SQLStore) GetIdentityByAddress(ctx context.Context, serverAddress string) (*IdentityWithTrust, error) {
+func (s *SQLStore) GetIdentityByAddress(ctx context.Context, serverAddress string) (*identitypb.Identity, error) {
 	row, err := s.queries.GetIdentityByAddress(ctx, serverAddress)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -196,13 +196,13 @@ func (s *SQLStore) UpdateLastSeen(ctx context.Context, serverAddress string, las
 }
 
 // ListIdentities returns a paginated list of identities
-func (s *SQLStore) ListIdentities(ctx context.Context) ([]*IdentityWithTrust, error) {
+func (s *SQLStore) ListIdentities(ctx context.Context) ([]*identitypb.Identity, error) {
 	rows, err := s.queries.ListIdentities(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list identities: %w", err)
 	}
 
-	identities := make([]*IdentityWithTrust, len(rows))
+	identities := make([]*identitypb.Identity, len(rows))
 	for i, row := range rows {
 		identity, err := s.rowToIdentityWithTrust(&row)
 		if err != nil {
@@ -328,13 +328,15 @@ func (s *SQLStore) syncChanges(ctx context.Context) error {
 }
 
 // rowToIdentityWithTrust converts a SQLC row to IdentityWithTrust
-func (s *SQLStore) rowToIdentityWithTrust(row *sqlc.Identity) (*IdentityWithTrust, error) {
+func (s *SQLStore) rowToIdentityWithTrust(row *sqlc.Identity) (*identitypb.Identity, error) {
 	identity := &identitypb.Identity{
-		PublicKey:     row.PublicKey,
-		ServerAddress: row.ServerAddress,
-		ServerName:    row.ServerName,
-		OwnerName:     row.OwnerName,
-		CreatedAt:     timestamppb.New(time.Unix(row.CreatedAt, 0)),
+		PublicKey:      row.PublicKey,
+		ServerAddress:  row.ServerAddress,
+		ServerName:     row.ServerName,
+		OwnerName:      row.OwnerName,
+		CreatedAt:      timestamppb.New(time.Unix(row.CreatedAt, 0)),
+		IsTrusted:      row.IsTrusted,
+		TrustUpdatedAt: timestamppb.New(time.Unix(row.TrustUpdatedAt, 0)),
 	}
 
 	// Parse capabilities JSON if present
@@ -346,10 +348,5 @@ func (s *SQLStore) rowToIdentityWithTrust(row *sqlc.Identity) (*IdentityWithTrus
 		identity.Capabilities = capabilities
 	}
 
-	result := NewIdentityWithTrust(identity)
-
-	result.IsTrusted = row.IsTrusted
-	result.TrustUpdatedAt = time.Unix(row.TrustUpdatedAt, 0)
-
-	return result, nil
+	return identity, nil
 }

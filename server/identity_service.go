@@ -58,12 +58,12 @@ func (s *identityService) AddIdentity(ctx context.Context, req *identitypb.AddId
 		req.Identity.CreatedAt = timestamppb.New(time.Now())
 	}
 
-	// Create identity with trust
-	identityWithTrust := store.NewIdentityWithTrust(req.Identity)
-	identityWithTrust.SetTrust(false, time.Now()) // Default to not trusted
+	if req.Identity.IsTrusted {
+		return nil, status.Error(codes.InvalidArgument, "cannot created trusted identity")
+	}
+	req.Identity.TrustUpdatedAt = req.Identity.CreatedAt
 
-	// Insert into store
-	if err := s.store.InsertIdentity(ctx, identityWithTrust); err != nil {
+	if err := s.store.InsertIdentity(ctx, req.Identity); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to insert identity: %v", err)
 	}
 
@@ -83,20 +83,9 @@ func (s *identityService) ListIdentities(ctx context.Context, req *identitypb.Li
 		return nil, status.Errorf(codes.Internal, "failed to list identities: %v", err)
 	}
 
-	// Convert to protobuf format
-	response := &identitypb.ListIdentitiesResponse{
-		Identities: make([]*identitypb.IdentityWithTrust, len(identities)),
-	}
-
-	for i, identity := range identities {
-		response.Identities[i] = &identitypb.IdentityWithTrust{
-			Identity:       identity.Identity,
-			IsTrusted:      identity.IsTrusted,
-			TrustUpdatedAt: timestamppb.New(identity.TrustUpdatedAt),
-		}
-	}
-
-	return response, nil
+	return &identitypb.ListIdentitiesResponse{
+		Identities: identities,
+	}, nil
 }
 
 // SetTrust updates the trust status of an identity (owner only)

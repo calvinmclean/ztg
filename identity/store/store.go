@@ -10,19 +10,19 @@ import (
 // Store defines the interface for identity persistence operations
 type Store interface {
 	// InsertIdentity adds a new identity to the store
-	InsertIdentity(ctx context.Context, identity *IdentityWithTrust) error
+	InsertIdentity(ctx context.Context, identity *identitypb.Identity) error
 
 	// GetIdentityByKey retrieves an identity by its public key
-	GetIdentityByKey(ctx context.Context, publicKey []byte) (*IdentityWithTrust, error)
+	GetIdentityByKey(ctx context.Context, publicKey []byte) (*identitypb.Identity, error)
 
 	// GetIdentityByAddress retrieves an identity by its server address
-	GetIdentityByAddress(ctx context.Context, serverAddress string) (*IdentityWithTrust, error)
+	GetIdentityByAddress(ctx context.Context, serverAddress string) (*identitypb.Identity, error)
 
 	// UpdateLastSeen updates the last seen timestamp for an identity
 	UpdateLastSeen(ctx context.Context, serverAddress string, lastSeen time.Time) error
 
 	// ListIdentities returns a paginated list of identities
-	ListIdentities(ctx context.Context) ([]*IdentityWithTrust, error)
+	ListIdentities(ctx context.Context) ([]*identitypb.Identity, error)
 
 	// SetTrustStatus updates the trust status of an identity
 	SetTrustStatus(ctx context.Context, publicKey []byte, trusted bool, updatedAt time.Time) error
@@ -35,24 +35,4 @@ type Store interface {
 
 	// Close closes the database connection
 	Close() error
-}
-
-// IdentityWithTrust represents an identity with trust information
-type IdentityWithTrust struct {
-	*identitypb.Identity
-	IsTrusted      bool      `json:"is_trusted"`
-	TrustUpdatedAt time.Time `json:"trust_updated_at"`
-}
-
-// NewIdentityWithTrust creates a new IdentityWithTrust from a protobuf Identity
-func NewIdentityWithTrust(identity *identitypb.Identity) *IdentityWithTrust {
-	return &IdentityWithTrust{
-		Identity: identity,
-	}
-}
-
-// SetTrust sets the trust status and updated timestamp
-func (i *IdentityWithTrust) SetTrust(trusted bool, updatedAt time.Time) {
-	i.IsTrusted = trusted
-	i.TrustUpdatedAt = updatedAt
 }

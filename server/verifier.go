@@ -407,7 +407,7 @@ func (v *Verifier) getPeerIdentityFromStoreOrRemote(peerAddr string) (*identityp
 		if identity, err := v.store.GetIdentityByAddress(context.Background(), peerAddr); err == nil {
 			// Found in store, update last seen
 			v.store.UpdateLastSeen(context.Background(), peerAddr, time.Now())
-			return identity.Identity, nil
+			return identity, nil
 		}
 	}
 
@@ -419,10 +419,8 @@ func (v *Verifier) getPeerIdentityFromStoreOrRemote(peerAddr string) (*identityp
 
 	// Store the fetched identity for future use (write-through)
 	if v.store != nil {
-		identityWithTrust := store.NewIdentityWithTrust(identity)
-		if err := v.store.InsertIdentity(context.Background(), identityWithTrust); err != nil {
-			// Log error but don't fail the operation
-			fmt.Printf("Warning: failed to store identity for %s: %v\n", peerAddr, err)
+		if err := v.store.InsertIdentity(context.Background(), identity); err != nil {
+			return nil, err
 		}
 	}
 
