@@ -22,7 +22,7 @@ type Store interface {
 	UpdateLastSeen(ctx context.Context, serverAddress string, lastSeen time.Time) error
 
 	// ListIdentities returns a paginated list of identities
-	ListIdentities(ctx context.Context, trustedOnly bool, pageSize int, offset int) ([]*IdentityWithTrust, error)
+	ListIdentities(ctx context.Context) ([]*IdentityWithTrust, error)
 
 	// SetTrustStatus updates the trust status of an identity
 	SetTrustStatus(ctx context.Context, publicKey []byte, trusted bool, updatedAt time.Time) error

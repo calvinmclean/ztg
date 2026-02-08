@@ -216,12 +216,8 @@ func (s *SQLStore) UpdateLastSeen(ctx context.Context, serverAddress string, las
 }
 
 // ListIdentities returns a paginated list of identities
-func (s *SQLStore) ListIdentities(ctx context.Context, trustedOnly bool, pageSize int, offset int) ([]*IdentityWithTrust, error) {
-	rows, err := s.queries.ListIdentities(ctx, sqlc.ListIdentitiesParams{
-		IsTrusted: trustedOnly,
-		Limit:     int64(pageSize),
-		Offset:    int64(offset),
-	})
+func (s *SQLStore) ListIdentities(ctx context.Context) ([]*IdentityWithTrust, error) {
+	rows, err := s.queries.ListIdentities(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list identities: %w", err)
 	}

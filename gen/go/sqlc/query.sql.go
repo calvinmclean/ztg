@@ -11,7 +11,7 @@ import (
 )
 
 const countIdentities = `-- name: CountIdentities :one
-SELECT COUNT(*) as count FROM identities 
+SELECT COUNT(*) as count FROM identities
 WHERE (EXCLUDED.sqlite_arg('trusted_only', false) = false OR is_trusted = ?)
 `
 
@@ -77,7 +77,7 @@ func (q *Queries) GetIdentityByKey(ctx context.Context, publicKey []byte) (Ident
 
 const insertIdentity = `-- name: InsertIdentity :one
 INSERT INTO identities (
-    public_key, server_address, server_name, owner_name, capabilities, 
+    public_key, server_address, server_name, owner_name, capabilities,
     created_at, last_seen, is_trusted, trust_updated_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, public_key, server_address, server_name, owner_name, capabilities, created_at, last_seen, is_trusted, trust_updated_at
@@ -124,20 +124,12 @@ func (q *Queries) InsertIdentity(ctx context.Context, arg InsertIdentityParams) 
 }
 
 const listIdentities = `-- name: ListIdentities :many
-SELECT id, public_key, server_address, server_name, owner_name, capabilities, created_at, last_seen, is_trusted, trust_updated_at FROM identities 
-WHERE (EXCLUDED.sqlite_arg('trusted_only', false) = false OR is_trusted = ?)
+SELECT id, public_key, server_address, server_name, owner_name, capabilities, created_at, last_seen, is_trusted, trust_updated_at FROM identities
 ORDER BY created_at DESC
-LIMIT ? OFFSET ?
 `
 
-type ListIdentitiesParams struct {
-	IsTrusted bool  `json:"is_trusted"`
-	Limit     int64 `json:"limit"`
-	Offset    int64 `json:"offset"`
-}
-
-func (q *Queries) ListIdentities(ctx context.Context, arg ListIdentitiesParams) ([]Identity, error) {
-	rows, err := q.db.QueryContext(ctx, listIdentities, arg.IsTrusted, arg.Limit, arg.Offset)
+func (q *Queries) ListIdentities(ctx context.Context) ([]Identity, error) {
+	rows, err := q.db.QueryContext(ctx, listIdentities)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +163,7 @@ func (q *Queries) ListIdentities(ctx context.Context, arg ListIdentitiesParams) 
 }
 
 const setTrustStatus = `-- name: SetTrustStatus :exec
-UPDATE identities 
+UPDATE identities
 SET is_trusted = ?, trust_updated_at = ?
 WHERE public_key = ?
 `

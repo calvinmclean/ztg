@@ -6,9 +6,12 @@ CREATE TABLE identities (
     server_name TEXT NOT NULL,
     owner_name TEXT NOT NULL,
     capabilities TEXT, -- JSON array
+    -- TODO: make timestamp
     created_at INTEGER NOT NULL,
+    -- TODO: make timestamp
     last_seen INTEGER NOT NULL,
     is_trusted BOOLEAN NOT NULL DEFAULT FALSE,
+    -- TODO: make timestamp
     trust_updated_at INTEGER
 );
 

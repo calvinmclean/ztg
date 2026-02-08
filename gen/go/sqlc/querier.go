@@ -14,7 +14,7 @@ type Querier interface {
 	GetIdentityByAddress(ctx context.Context, serverAddress string) (Identity, error)
 	GetIdentityByKey(ctx context.Context, publicKey []byte) (Identity, error)
 	InsertIdentity(ctx context.Context, arg InsertIdentityParams) (Identity, error)
-	ListIdentities(ctx context.Context, arg ListIdentitiesParams) ([]Identity, error)
+	ListIdentities(ctx context.Context) ([]Identity, error)
 	SetTrustStatus(ctx context.Context, arg SetTrustStatusParams) error
 	UpdateLastSeen(ctx context.Context, arg UpdateLastSeenParams) error
 }

@@ -5,7 +5,6 @@ import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/calvinmclean/ztg/config"
@@ -74,21 +73,8 @@ func (s *identityService) ListIdentities(ctx context.Context, req *identitypb.Li
 		return nil, status.Error(codes.Unavailable, "identity store not available")
 	}
 
-	// Parse pagination
-	pageSize := int(req.PageSize)
-	if pageSize <= 0 || pageSize > 100 {
-		pageSize = 20 // default
-	}
-
-	offset := 0
-	if req.PageToken != "" {
-		if parsed, err := strconv.Atoi(req.PageToken); err == nil {
-			offset = parsed
-		}
-	}
-
 	// Get identities from store
-	identities, err := s.store.ListIdentities(ctx, req.TrustedOnly, pageSize, offset)
+	identities, err := s.store.ListIdentities(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to list identities: %v", err)
 	}
@@ -104,11 +90,6 @@ func (s *identityService) ListIdentities(ctx context.Context, req *identitypb.Li
 			IsTrusted:      identity.IsTrusted,
 			TrustUpdatedAt: identity.TrustUpdatedAt.Unix(),
 		}
-	}
-
-	// Set next page token if more results
-	if len(identities) == pageSize {
-		response.NextPageToken = strconv.Itoa(offset + pageSize)
 	}
 
 	return response, nil

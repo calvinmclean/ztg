@@ -12,12 +12,14 @@ message Identity {
   string server_name = 3;
   string owner_name = 4;
   repeated string capabilities = 5;
+  // TODO: make timestamp
   int64 created_at = 6;
 }
 
 message IdentityWithTrust {
   Identity identity = 1;
   bool is_trusted = 2;
+  // TODO: make timestamp
   int64 trust_updated_at = 3;
 }
 
@@ -25,11 +27,7 @@ message AddIdentityRequest {
   Identity identity = 1;
 }
 
-message ListIdentitiesRequest {
-  bool trusted_only = 1;
-  int32 page_size = 2;
-  string page_token = 3;
-}
+message ListIdentitiesRequest {}
 
 message ListIdentitiesResponse {
   repeated IdentityWithTrust identities = 1;
