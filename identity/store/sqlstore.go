@@ -9,6 +9,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/calvinmclean/ztg/config"
 	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
 	"github.com/calvinmclean/ztg/gen/go/sqlc"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -26,18 +27,8 @@ type SQLStore struct {
 	queries *sqlc.Queries
 }
 
-// Config holds the configuration for the SQLStore
-type Config struct {
-	DatabaseURL               string
-	DatabaseAuthToken         string
-	DatabasePath              string
-	DatabaseLongPollTimeoutMs int
-	DatabaseBootstrapIfEmpty  bool
-	UseEmbeddedReplica        bool
-}
-
 // NewSQLStore creates a new SQLStore instance
-func NewSQLStore(cfg Config) (*SQLStore, error) {
+func NewSQLStore(cfg config.DatabaseConfig) (*SQLStore, error) {
 	var (
 		db      *sql.DB
 		tursoDB *turso.TursoSyncDb
@@ -49,14 +40,14 @@ func NewSQLStore(cfg Config) (*SQLStore, error) {
 	if cfg.UseEmbeddedReplica {
 		// For embedded replica with sync (local + remote)
 		syncCfg := turso.TursoSyncDbConfig{
-			Path:              cfg.DatabasePath,
-			LongPollTimeoutMs: cfg.DatabaseLongPollTimeoutMs,
-			BootstrapIfEmpty:  &cfg.DatabaseBootstrapIfEmpty,
+			Path:              cfg.Path,
+			LongPollTimeoutMs: cfg.PollTimeoutMs,
+			BootstrapIfEmpty:  &cfg.IfEmpty,
 		}
 
-		if cfg.DatabaseURL != "" {
-			syncCfg.RemoteUrl = cfg.DatabaseURL
-			syncCfg.AuthToken = cfg.DatabaseAuthToken
+		if cfg.URL != "" {
+			syncCfg.RemoteUrl = cfg.URL
+			syncCfg.AuthToken = cfg.AuthToken
 		}
 
 		tursoDB, err = turso.NewTursoSyncDb(ctx, syncCfg)
@@ -71,12 +62,12 @@ func NewSQLStore(cfg Config) (*SQLStore, error) {
 	} else {
 		// For direct connection (local or remote)
 		var dsn string
-		if cfg.DatabaseURL != "" {
+		if cfg.URL != "" {
 			// Remote connection
-			dsn = fmt.Sprintf("%s?authToken=%s", cfg.DatabaseURL, cfg.DatabaseAuthToken)
+			dsn = fmt.Sprintf("%s?authToken=%s", cfg.URL, cfg.AuthToken)
 		} else {
 			// Local connection
-			dsn = cfg.DatabasePath
+			dsn = cfg.Path
 		}
 
 		db, err = sql.Open("turso", dsn)

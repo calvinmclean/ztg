@@ -65,22 +65,13 @@ func NewServer(serverConfig config.ServerConfig, databaseConfig config.DatabaseC
 
 	// Initialize SQL store if database is configured
 	var sqlStore store.Store
-	if databaseConfig.DatabasePath != "" || databaseConfig.DatabaseURL != "" {
-		storeConfig := store.Config{
-			DatabaseURL:               databaseConfig.DatabaseURL,
-			DatabaseAuthToken:         databaseConfig.DatabaseAuthToken,
-			DatabasePath:              databaseConfig.DatabasePath,
-			DatabaseLongPollTimeoutMs: databaseConfig.DatabaseLongPollTimeoutMs,
-			DatabaseBootstrapIfEmpty:  databaseConfig.DatabaseBootstrapIfEmpty,
-			UseEmbeddedReplica:        databaseConfig.DatabaseUseEmbeddedReplica,
-		}
-
+	if databaseConfig.Path != "" || databaseConfig.URL != "" {
 		var err error
-		sqlStore, err = store.NewSQLStore(storeConfig)
+		sqlStore, err = store.NewSQLStore(databaseConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize SQL store: %w", err)
 		}
-		logger.Info("initialized SQL identity store", "path", databaseConfig.DatabasePath, "url", databaseConfig.DatabaseURL)
+		logger.Info("initialized SQL identity store", "path", databaseConfig.Path, "url", databaseConfig.URL)
 	}
 
 	addr := fmt.Sprintf(":%d", serverConfig.Port)

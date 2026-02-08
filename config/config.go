@@ -27,12 +27,12 @@ type IdentityConfig struct {
 }
 
 type DatabaseConfig struct {
-	DatabaseURL                string `json:"database_url,omitzero" envconfig:"ZTG_DATABASE_URL"`
-	DatabaseAuthToken          string `json:"database_auth_token,omitzero" envconfig:"ZTG_DATABASE_AUTH_TOKEN"`
-	DatabasePath               string `json:"database_path,omitzero" envconfig:"ZTG_DATABASE_PATH"`
-	DatabaseLongPollTimeoutMs  int    `json:"database_long_poll_timeout_ms,omitzero" envconfig:"ZTG_DATABASE_LONG_POLL_TIMEOUT_MS"`
-	DatabaseBootstrapIfEmpty   bool   `json:"database_bootstrap_if_empty,omitzero" envconfig:"ZTG_DATABASE_BOOTSTRAP_IF_EMPTY"`
-	DatabaseUseEmbeddedReplica bool   `json:"database_use_embedded_replica,omitzero" envconfig:"ZTG_DATABASE_USE_EMBEDDED_REPLICA"`
+	URL                string `json:"url,omitzero" envconfig:"ZTG_DATABASE_URL"`
+	AuthToken          string `json:"auth_token,omitzero" envconfig:"ZTG_DATABASE_AUTH_TOKEN"`
+	Path               string `json:"path,omitzero" envconfig:"ZTG_DATABASE_PATH"`
+	PollTimeoutMs      int    `json:"long_poll_timeout_ms,omitzero" envconfig:"ZTG_DATABASE_LONG_POLL_TIMEOUT_MS"`
+	IfEmpty            bool   `json:"bootstrap_if_empty,omitzero" envconfig:"ZTG_DATABASE_BOOTSTRAP_IF_EMPTY"`
+	UseEmbeddedReplica bool   `json:"use_embedded_replica,omitzero" envconfig:"ZTG_DATABASE_USE_EMBEDDED_REPLICA"`
 }
 
 type Config struct {
