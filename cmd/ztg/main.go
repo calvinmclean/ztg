@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/calvinmclean/ztg/cmd/challenge"
+	"github.com/calvinmclean/ztg/cmd/identity"
 	"github.com/calvinmclean/ztg/cmd/key"
 	"github.com/calvinmclean/ztg/cmd/server"
 	"github.com/calvinmclean/ztg/cmd/trust"
@@ -22,6 +23,7 @@ func main() {
 			challenge.Command,
 			server.Command,
 			trust.Command,
+			identity.Command,
 		},
 	}
 
