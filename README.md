@@ -90,6 +90,101 @@ ffCfg := ffserver.Config{
 }
 ```
 
+## Identity Store & Trust Management
+
+ztg now includes persistent identity storage using SQLite with optional Turso cloud integration. This allows server owners to maintain a trusted identity database and manage trust relationships.
+
+### How It Works
+
+The identity store provides:
+
+- **Persistent Storage**: Identities are cached in a SQLite database instead of just in-memory
+- **Trust Management**: Server owners can mark identities as trusted or untrusted
+- **Automatic Discovery**: New challengers are automatically added to the database
+- **Local Verification**: Trusted identities can be verified without HTTP requests
+
+### Running with Storage
+
+#### In-Memory Database (Default)
+```bash
+# Uses in-memory database (identities lost on restart)
+go run cmd/ztg/main.go server
+```
+
+#### Local SQLite Database
+```bash
+# Use environment variable
+ZTG_DATABASE_PATH="./server.db" go run cmd/ztg/main.go server
+
+# Or set in config.cue
+database: {
+    database_path: "./server.db"
+}
+```
+
+#### Turso Cloud Integration
+```bash
+# Embedded replica with sync (local + remote)
+ZTG_DATABASE_PATH="./server.db" \
+ZTG_DATABASE_URL="libsql://[DATABASE].turso.io" \
+ZTG_DATABASE_AUTH_TOKEN="[TOKEN]" \
+go run cmd/ztg/main.go server
+```
+
+### Managing Trust Status
+
+#### List All Identities
+```bash
+ztg identity list --server localhost:50052
+```
+
+#### Mark Identity as Trusted
+```bash
+ztg trust send \
+  --server localhost:50052 \
+  --peer localhost:50053 \
+  --trusted \
+  --key-path <owner_key_path> 
+```
+
+### Local vs Remote Player Challenges
+
+The identity store enables a powerful use case where Player A runs locally and challenges Player B's server:
+
+1. **Player A** runs a local server
+
+2. **Player B** runs their deployed server with storage
+
+3. **Player B** registers their identity with Player A's local server:
+   ```bash
+   # First, get Player B's public key (outputs in base64 format)
+   ztg key show --public --key-path .keys/server.pem
+   
+   # Then add it to Player A's local server
+   ztg identity add \
+     --server localhost:50052 \
+     --peer player-b.example.com:443 \
+     --peer-name "Player B Server" \
+     --owner-name "Player B" \
+     --public-key [PLAYER_B_PUBLIC_KEY]
+   ```
+
+4. **Player A** challenges Player B:
+   ```bash
+   ztg challenge send \
+     --target player-b.example.com:443 \
+     --game ztg.FactorFight.v1 \
+     --server localhost:50052 \
+     --key-path <owner_key_path> 
+   ```
+
+5. **Player B** now knows Player A's identity without making HTTP requests because:
+   - Player A's identity was stored in Player B's database during the first challenge
+   - Player B can verify Player A's identity locally using the cached public key
+   - Future challenges from Player A can be verified instantly without network calls
+
+This enables efficient zero-trust gaming while maintaining identity persistence across server restarts.
+
 ## Challenging Other Players
 
 Once your server is deployed, you can challenge other players:
@@ -99,7 +194,7 @@ ztg challenge send \
   --target ztg.fly.dev:443 \
   --game ztg.FactorFight.v1 \
   --server ztg.fly.dev:443 \
-  --key-path .keys/owner.pem
+  --key-path <owner_key_path> 
 ```
 
 Replace `--server ztg.fly.dev:443` with your deployed server address to challenge me with your implementation.

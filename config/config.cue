@@ -34,12 +34,11 @@ package config
 }
 
 #Database: {
-	database_url:                string | *""
-	database_auth_token:         string | *""
-	database_path:               string | *":memory:"
-	database_long_poll_timeout_ms: int  | *10000
-	database_bootstrap_if_empty:  bool | *true
-	database_use_embedded_replica: bool | *false
+	url:                  string | *""
+	auth_token:           string | *""
+	path:                 string | *":memory:"
+	long_poll_timeout_ms: int | *10000
+	bootstrap_if_empty:   bool | *true
 }
 
 server!:   #Server

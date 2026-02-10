@@ -5,8 +5,11 @@ tasks:
     env:
       ZTG_PORT: 50052
       ZTG_IDENTITY_SERVER_ADDRESS: "localhost:50052"
-      ZTG_DATABASE_PATH: ":memory:"
+      # ZTG_DATABASE_URL: ""
+      # ZTG_DATABASE_AUTH_TOKEN: ""
+      # ZTG_DATABASE_BOOTSTRAP_IF_EMPTY: true
       # ZTG_DATABASE_PATH: "./server1.db"
+      ZTG_DATABASE_PATH: ":memory:"
     cmds:
       - go run cmd/ztg/main.go server
 

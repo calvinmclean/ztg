@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -37,17 +38,19 @@ func NewSQLStore(cfg config.DatabaseConfig) (*SQLStore, error) {
 
 	ctx := context.Background()
 
-	if cfg.UseEmbeddedReplica {
-		// For embedded replica with sync (local + remote)
-		syncCfg := turso.TursoSyncDbConfig{
-			Path:              cfg.Path,
-			LongPollTimeoutMs: cfg.PollTimeoutMs,
-			BootstrapIfEmpty:  &cfg.IfEmpty,
+	switch {
+	case cfg.URL != "":
+		path := cfg.Path
+		if path == "" {
+			path = ":memory:"
 		}
 
-		if cfg.URL != "" {
-			syncCfg.RemoteUrl = cfg.URL
-			syncCfg.AuthToken = cfg.AuthToken
+		syncCfg := turso.TursoSyncDbConfig{
+			Path:              path,
+			LongPollTimeoutMs: cfg.PollTimeoutMs,
+			BootstrapIfEmpty:  &cfg.IfEmpty,
+			RemoteUrl:         cfg.URL,
+			AuthToken:         cfg.AuthToken,
 		}
 
 		tursoDB, err = turso.NewTursoSyncDb(ctx, syncCfg)
@@ -59,21 +62,13 @@ func NewSQLStore(cfg config.DatabaseConfig) (*SQLStore, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect to turso sync db: %w", err)
 		}
-	} else {
-		// For direct connection (local or remote)
-		var dsn string
-		if cfg.URL != "" {
-			// Remote connection
-			dsn = fmt.Sprintf("%s?authToken=%s", cfg.URL, cfg.AuthToken)
-		} else {
-			// Local connection
-			dsn = cfg.Path
-		}
-
-		db, err = sql.Open("turso", dsn)
+	case cfg.Path != "":
+		db, err = sql.Open("turso", cfg.Path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open database: %w", err)
 		}
+	default:
+		return nil, errors.New("database URL or local path is required")
 	}
 
 	// Test the connection

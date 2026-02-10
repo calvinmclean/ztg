@@ -27,12 +27,11 @@ type IdentityConfig struct {
 }
 
 type DatabaseConfig struct {
-	URL                string `json:"url,omitzero" envconfig:"ZTG_DATABASE_URL"`
-	AuthToken          string `json:"auth_token,omitzero" envconfig:"ZTG_DATABASE_AUTH_TOKEN"`
-	Path               string `json:"path,omitzero" envconfig:"ZTG_DATABASE_PATH"`
-	PollTimeoutMs      int    `json:"long_poll_timeout_ms,omitzero" envconfig:"ZTG_DATABASE_LONG_POLL_TIMEOUT_MS"`
-	IfEmpty            bool   `json:"bootstrap_if_empty,omitzero" envconfig:"ZTG_DATABASE_BOOTSTRAP_IF_EMPTY"`
-	UseEmbeddedReplica bool   `json:"use_embedded_replica,omitzero" envconfig:"ZTG_DATABASE_USE_EMBEDDED_REPLICA"`
+	URL           string `json:"url,omitzero" envconfig:"ZTG_DATABASE_URL"`
+	AuthToken     string `json:"auth_token,omitzero" envconfig:"ZTG_DATABASE_AUTH_TOKEN"`
+	Path          string `json:"path,omitzero" envconfig:"ZTG_DATABASE_PATH"`
+	PollTimeoutMs int    `json:"long_poll_timeout_ms,omitzero" envconfig:"ZTG_DATABASE_LONG_POLL_TIMEOUT_MS"`
+	IfEmpty       bool   `json:"bootstrap_if_empty,omitzero" envconfig:"ZTG_DATABASE_BOOTSTRAP_IF_EMPTY"`
 }
 
 type Config struct {

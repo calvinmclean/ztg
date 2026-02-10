@@ -2,8 +2,10 @@ package identity
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
@@ -45,7 +47,7 @@ var Command = &cli.Command{
 				&cli.StringFlag{
 					Name:     "public-key",
 					Required: true,
-					Usage:    "Peer public key in hex format",
+					Usage:    "Peer public key in hex or base64 format",
 				},
 				&cli.StringFlag{
 					Name:     "key-path",
@@ -95,10 +97,22 @@ func addIdentity(ctx context.Context, cmd *cli.Command) error {
 	publicKeyHex := cmd.String("public-key")
 	timeout := time.Duration(cmd.Int("timeout")) * time.Second
 
-	// Parse public key
-	publicKey, err := hex.DecodeString(publicKeyHex)
+	// Parse public key (try hex first, then base64)
+	var publicKey []byte
+	var err error
+
+	// Try hex decoding first
+	if strings.HasPrefix(strings.ToLower(publicKeyHex), "0x") {
+		publicKeyHex = publicKeyHex[2:] // Remove 0x prefix
+	}
+
+	publicKey, err = hex.DecodeString(publicKeyHex)
 	if err != nil {
-		return fmt.Errorf("failed to decode public key: %w", err)
+		// If hex fails, try base64
+		publicKey, err = base64.StdEncoding.DecodeString(publicKeyHex)
+		if err != nil {
+			return fmt.Errorf("failed to decode public key as hex or base64: %w", err)
+		}
 	}
 
 	// Create identity message
