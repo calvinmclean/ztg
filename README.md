@@ -92,42 +92,24 @@ ffCfg := ffserver.Config{
 
 ## Identity Store & Trust Management
 
-ztg now includes persistent identity storage using SQLite with optional Turso cloud integration. This allows server owners to maintain a trusted identity database and manage trust relationships.
+ztg now includes persistent identity storage using PostgreSQL. This allows server owners to maintain a trusted identity database and manage trust relationships.
 
 ### How It Works
 
 The identity store provides:
 
-- **Persistent Storage**: Identities are cached in a SQLite database instead of just in-memory
+- **Persistent Storage**: Identities are stored in PostgreSQL
 - **Trust Management**: Server owners can mark identities as trusted or untrusted
 - **Automatic Discovery**: New challengers are automatically added to the database
 - **Local Verification**: Trusted identities can be verified without HTTP requests
 
 ### Running with Storage
-
-#### In-Memory Database (Default)
 ```bash
-# Uses in-memory database (identities lost on restart)
-go run cmd/ztg/main.go server
-```
+# Start PostgreSQL with Docker Compose
+docker-compose up -d postgres
 
-#### Local SQLite Database
-```bash
-# Use environment variable
-ZTG_DATABASE_PATH="./server.db" go run cmd/ztg/main.go server
-
-# Or set in config.cue
-database: {
-    database_path: "./server.db"
-}
-```
-
-#### Turso Cloud Integration
-```bash
-# Embedded replica with sync (local + remote)
-ZTG_DATABASE_PATH="./server.db" \
-ZTG_DATABASE_URL="libsql://[DATABASE].turso.io" \
-ZTG_DATABASE_AUTH_TOKEN="[TOKEN]" \
+# Run server with PostgreSQL connection
+ZTG_DATABASE_URL="postgres://ztg:password@localhost:5432/ztg?sslmode=disable" \
 go run cmd/ztg/main.go server
 ```
 
@@ -184,6 +166,44 @@ The identity store enables a powerful use case where Player A runs locally and c
    - Future challenges from Player A can be verified instantly without network calls
 
 This enables efficient zero-trust gaming while maintaining identity persistence across server restarts.
+
+## Database Migrations
+
+The project uses [golang-migrate](https://github.com/golang-migrate/migrate) to manage database schema changes. Migrations are located in the `migrations/` directory.
+
+#### Installation
+
+```bash
+# Install CLI tool
+go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+```
+
+#### Running Migrations with golang-migrate
+
+**Run Up Migrations**
+```bash
+# Up migrations (apply all pending migrations)
+migrate -database "postgres://user:password@localhost:5432/ztg_db?sslmode=disable" \
+        -path "migrations" \
+        up
+
+# Using environment variable
+migrate -database "$DATABASE_URL" -path "migrations" up
+```
+
+**Check migration status**:
+```bash
+migrate -database "$DATABASE_URL" -path "migrations" version
+```
+
+**Rollback migrations**:
+```bash
+# Rollback one migration
+migrate -database "$DATABASE_URL" -path "migrations" down 1
+
+# Rollback all migrations
+migrate -database "$DATABASE_URL" -path "migrations" down
+```
 
 ## Challenging Other Players
 

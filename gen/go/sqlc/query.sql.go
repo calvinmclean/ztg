@@ -10,8 +10,8 @@ import (
 )
 
 const countIdentities = `-- name: CountIdentities :one
-SELECT COUNT(*) as count FROM identities
-WHERE (EXCLUDED.sqlite_arg('trusted_only', false) = false OR is_trusted = ?)
+SELECT COUNT(*) as count FROM ztg.identities
+WHERE (EXCLUDED.arg_trusted_only = false OR is_trusted = $1)
 `
 
 func (q *Queries) CountIdentities(ctx context.Context, isTrusted bool) (int64, error) {
@@ -22,7 +22,7 @@ func (q *Queries) CountIdentities(ctx context.Context, isTrusted bool) (int64, e
 }
 
 const deleteIdentity = `-- name: DeleteIdentity :exec
-DELETE FROM identities WHERE public_key = ?
+DELETE FROM ztg.identities WHERE public_key = $1
 `
 
 func (q *Queries) DeleteIdentity(ctx context.Context, publicKey []byte) error {
@@ -31,12 +31,12 @@ func (q *Queries) DeleteIdentity(ctx context.Context, publicKey []byte) error {
 }
 
 const getIdentityByAddress = `-- name: GetIdentityByAddress :one
-SELECT id, public_key, server_address, server_name, owner_name, capabilities, created_at, last_seen, is_trusted, trust_updated_at FROM identities WHERE server_address = ? LIMIT 1
+SELECT id, public_key, server_address, server_name, owner_name, capabilities, created_at, last_seen, is_trusted, trust_updated_at FROM ztg.identities WHERE server_address = $1 LIMIT 1
 `
 
-func (q *Queries) GetIdentityByAddress(ctx context.Context, serverAddress string) (Identity, error) {
+func (q *Queries) GetIdentityByAddress(ctx context.Context, serverAddress string) (ZtgIdentity, error) {
 	row := q.db.QueryRowContext(ctx, getIdentityByAddress, serverAddress)
-	var i Identity
+	var i ZtgIdentity
 	err := row.Scan(
 		&i.ID,
 		&i.PublicKey,
@@ -53,12 +53,12 @@ func (q *Queries) GetIdentityByAddress(ctx context.Context, serverAddress string
 }
 
 const getIdentityByKey = `-- name: GetIdentityByKey :one
-SELECT id, public_key, server_address, server_name, owner_name, capabilities, created_at, last_seen, is_trusted, trust_updated_at FROM identities WHERE public_key = ? LIMIT 1
+SELECT id, public_key, server_address, server_name, owner_name, capabilities, created_at, last_seen, is_trusted, trust_updated_at FROM ztg.identities WHERE public_key = $1 LIMIT 1
 `
 
-func (q *Queries) GetIdentityByKey(ctx context.Context, publicKey []byte) (Identity, error) {
+func (q *Queries) GetIdentityByKey(ctx context.Context, publicKey []byte) (ZtgIdentity, error) {
 	row := q.db.QueryRowContext(ctx, getIdentityByKey, publicKey)
-	var i Identity
+	var i ZtgIdentity
 	err := row.Scan(
 		&i.ID,
 		&i.PublicKey,
@@ -75,38 +75,31 @@ func (q *Queries) GetIdentityByKey(ctx context.Context, publicKey []byte) (Ident
 }
 
 const insertIdentity = `-- name: InsertIdentity :one
-INSERT INTO identities (
-    public_key, server_address, server_name, owner_name, capabilities,
-    created_at, last_seen, is_trusted, trust_updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO ztg.identities (
+    public_key, server_address, server_name, owner_name, capabilities, is_trusted
+) VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, public_key, server_address, server_name, owner_name, capabilities, created_at, last_seen, is_trusted, trust_updated_at
 `
 
 type InsertIdentityParams struct {
-	PublicKey      []byte `json:"public_key"`
-	ServerAddress  string `json:"server_address"`
-	ServerName     string `json:"server_name"`
-	OwnerName      string `json:"owner_name"`
-	Capabilities   string `json:"capabilities"`
-	CreatedAt      int64  `json:"created_at"`
-	LastSeen       int64  `json:"last_seen"`
-	IsTrusted      bool   `json:"is_trusted"`
-	TrustUpdatedAt int64  `json:"trust_updated_at"`
+	PublicKey     []byte `json:"public_key"`
+	ServerAddress string `json:"server_address"`
+	ServerName    string `json:"server_name"`
+	OwnerName     string `json:"owner_name"`
+	Capabilities  string `json:"capabilities"`
+	IsTrusted     bool   `json:"is_trusted"`
 }
 
-func (q *Queries) InsertIdentity(ctx context.Context, arg InsertIdentityParams) (Identity, error) {
+func (q *Queries) InsertIdentity(ctx context.Context, arg InsertIdentityParams) (ZtgIdentity, error) {
 	row := q.db.QueryRowContext(ctx, insertIdentity,
 		arg.PublicKey,
 		arg.ServerAddress,
 		arg.ServerName,
 		arg.OwnerName,
 		arg.Capabilities,
-		arg.CreatedAt,
-		arg.LastSeen,
 		arg.IsTrusted,
-		arg.TrustUpdatedAt,
 	)
-	var i Identity
+	var i ZtgIdentity
 	err := row.Scan(
 		&i.ID,
 		&i.PublicKey,
@@ -123,19 +116,19 @@ func (q *Queries) InsertIdentity(ctx context.Context, arg InsertIdentityParams) 
 }
 
 const listIdentities = `-- name: ListIdentities :many
-SELECT id, public_key, server_address, server_name, owner_name, capabilities, created_at, last_seen, is_trusted, trust_updated_at FROM identities
+SELECT id, public_key, server_address, server_name, owner_name, capabilities, created_at, last_seen, is_trusted, trust_updated_at FROM ztg.identities
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListIdentities(ctx context.Context) ([]Identity, error) {
+func (q *Queries) ListIdentities(ctx context.Context) ([]ZtgIdentity, error) {
 	rows, err := q.db.QueryContext(ctx, listIdentities)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Identity
+	var items []ZtgIdentity
 	for rows.Next() {
-		var i Identity
+		var i ZtgIdentity
 		if err := rows.Scan(
 			&i.ID,
 			&i.PublicKey,
@@ -162,32 +155,26 @@ func (q *Queries) ListIdentities(ctx context.Context) ([]Identity, error) {
 }
 
 const setTrustStatus = `-- name: SetTrustStatus :exec
-UPDATE identities
-SET is_trusted = ?, trust_updated_at = ?
-WHERE server_address = ?
+UPDATE ztg.identities
+SET is_trusted = $1, trust_updated_at = NOW()
+WHERE server_address = $2
 `
 
 type SetTrustStatusParams struct {
-	IsTrusted      bool   `json:"is_trusted"`
-	TrustUpdatedAt int64  `json:"trust_updated_at"`
-	ServerAddress  string `json:"server_address"`
+	IsTrusted     bool   `json:"is_trusted"`
+	ServerAddress string `json:"server_address"`
 }
 
 func (q *Queries) SetTrustStatus(ctx context.Context, arg SetTrustStatusParams) error {
-	_, err := q.db.ExecContext(ctx, setTrustStatus, arg.IsTrusted, arg.TrustUpdatedAt, arg.ServerAddress)
+	_, err := q.db.ExecContext(ctx, setTrustStatus, arg.IsTrusted, arg.ServerAddress)
 	return err
 }
 
 const updateLastSeen = `-- name: UpdateLastSeen :exec
-UPDATE identities SET last_seen = ? WHERE server_address = ?
+UPDATE ztg.identities SET last_seen = NOW() WHERE server_address = $1
 `
 
-type UpdateLastSeenParams struct {
-	LastSeen      int64  `json:"last_seen"`
-	ServerAddress string `json:"server_address"`
-}
-
-func (q *Queries) UpdateLastSeen(ctx context.Context, arg UpdateLastSeenParams) error {
-	_, err := q.db.ExecContext(ctx, updateLastSeen, arg.LastSeen, arg.ServerAddress)
+func (q *Queries) UpdateLastSeen(ctx context.Context, serverAddress string) error {
+	_, err := q.db.ExecContext(ctx, updateLastSeen, serverAddress)
 	return err
 }

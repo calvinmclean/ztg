@@ -34,11 +34,15 @@ package config
 }
 
 #Database: {
-	url:                  string | *""
-	auth_token:           string | *""
-	path:                 string | *":memory:"
-	long_poll_timeout_ms: int | *10000
-	bootstrap_if_empty:   bool | *true
+	// Standard PostgreSQL connection string
+	// Examples:
+	// Local: "postgres://ztg:password@localhost:5432/ztg?sslmode=disable"
+	// Production: "postgres://user:pass@host:5432/ztg?sslmode=require"
+	url:                string | *"postgres://ztg:password@localhost:5432/ztg?sslmode=disable"
+	max_connections:    int | *10
+	min_connections:    int | *1
+	max_conn_lifetime:  int | *3600 // seconds
+	max_conn_idle_time: int | *300  // seconds
 }
 
 server!:   #Server

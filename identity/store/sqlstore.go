@@ -3,11 +3,8 @@ package store
 import (
 	"context"
 	"database/sql"
-	"embed"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/calvinmclean/ztg/config"
@@ -15,60 +12,21 @@ import (
 	"github.com/calvinmclean/ztg/gen/go/sqlc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	turso "turso.tech/database/tursogo"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-//go:embed schema/*.sql
-var schemaFS embed.FS
-
-// SQLStore implements the Store interface using SQLC-generated code with Turso
+// SQLStore implements the Store interface using SQLC-generated code with PostgreSQL
 type SQLStore struct {
 	db      *sql.DB
-	tursoDB *turso.TursoSyncDb
 	queries *sqlc.Queries
 }
 
 // NewSQLStore creates a new SQLStore instance
 func NewSQLStore(cfg config.DatabaseConfig) (*SQLStore, error) {
-	var (
-		db      *sql.DB
-		tursoDB *turso.TursoSyncDb
-		err     error
-	)
-
-	ctx := context.Background()
-
-	switch {
-	case cfg.URL != "":
-		path := cfg.Path
-		if path == "" {
-			path = ":memory:"
-		}
-
-		syncCfg := turso.TursoSyncDbConfig{
-			Path:              path,
-			LongPollTimeoutMs: cfg.PollTimeoutMs,
-			BootstrapIfEmpty:  &cfg.IfEmpty,
-			RemoteUrl:         cfg.URL,
-			AuthToken:         cfg.AuthToken,
-		}
-
-		tursoDB, err = turso.NewTursoSyncDb(ctx, syncCfg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create turso sync db: %w", err)
-		}
-
-		db, err = tursoDB.Connect(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to connect to turso sync db: %w", err)
-		}
-	case cfg.Path != "":
-		db, err = sql.Open("turso", cfg.Path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open database: %w", err)
-		}
-	default:
-		return nil, errors.New("database URL or local path is required")
+	// Use pgx driver with connection string
+	db, err := sql.Open("pgx", cfg.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
 	// Test the connection
@@ -76,46 +34,22 @@ func NewSQLStore(cfg config.DatabaseConfig) (*SQLStore, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// Run migrations
-	if err := runMigrations(ctx, db); err != nil {
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
-	}
-
 	return &SQLStore{
 		db:      db,
-		tursoDB: tursoDB,
 		queries: sqlc.New(db),
 	}, nil
 }
 
-// runMigrations ensures the database schema is up to date
-func runMigrations(ctx context.Context, db *sql.DB) error {
-	// Check if identities table exists
-	var result struct {
-		name string
+// Close closes the database connection
+func (s *SQLStore) Close() error {
+	if s.db != nil {
+		return s.db.Close()
 	}
-	err := db.QueryRowContext(ctx,
-		"SELECT name FROM sqlite_master WHERE type='table' AND name='identities'").Scan(&result.name)
-	if err == sql.ErrNoRows {
-		schemaContent, err := schemaFS.ReadFile("schema/schema.sql")
-		if err != nil {
-			return fmt.Errorf("failed to read schema file: %w", err)
-		}
-
-		if _, err := db.ExecContext(ctx, string(schemaContent)); err != nil {
-			return fmt.Errorf("failed to create table: %w", err)
-		}
-	} else if err != nil {
-		return fmt.Errorf("failed to check table existence: %w", err)
-	}
-
 	return nil
 }
 
 // InsertIdentity adds a new identity to the store
 func (s *SQLStore) InsertIdentity(ctx context.Context, identity *identitypb.Identity) error {
-	now := time.Now()
-
 	// Convert capabilities to JSON string
 	capJSON, err := json.Marshal(identity.GetCapabilities())
 	if err != nil {
@@ -123,15 +57,12 @@ func (s *SQLStore) InsertIdentity(ctx context.Context, identity *identitypb.Iden
 	}
 
 	params := sqlc.InsertIdentityParams{
-		PublicKey:      identity.GetPublicKey(),
-		ServerAddress:  identity.GetServerAddress(),
-		ServerName:     identity.GetServerName(),
-		OwnerName:      identity.GetOwnerName(),
-		Capabilities:   string(capJSON),
-		CreatedAt:      now.Unix(),
-		LastSeen:       now.Unix(),
-		TrustUpdatedAt: now.Unix(),
-		IsTrusted:      identity.IsTrusted,
+		PublicKey:     identity.GetPublicKey(),
+		ServerAddress: identity.GetServerAddress(),
+		ServerName:    identity.GetServerName(),
+		OwnerName:     identity.GetOwnerName(),
+		Capabilities:  string(capJSON),
+		IsTrusted:     identity.IsTrusted,
 	}
 
 	_, err = s.queries.InsertIdentity(ctx, params)
@@ -139,7 +70,7 @@ func (s *SQLStore) InsertIdentity(ctx context.Context, identity *identitypb.Iden
 		return fmt.Errorf("failed to insert identity: %w", err)
 	}
 
-	return s.syncChanges(ctx)
+	return nil
 }
 
 // GetIdentityByKey retrieves an identity by its public key
@@ -170,15 +101,12 @@ func (s *SQLStore) GetIdentityByAddress(ctx context.Context, serverAddress strin
 
 // UpdateLastSeen updates the last seen timestamp for an identity
 func (s *SQLStore) UpdateLastSeen(ctx context.Context, serverAddress string, lastSeen time.Time) error {
-	err := s.queries.UpdateLastSeen(ctx, sqlc.UpdateLastSeenParams{
-		LastSeen:      lastSeen.Unix(),
-		ServerAddress: serverAddress,
-	})
+	err := s.queries.UpdateLastSeen(ctx, serverAddress)
 	if err != nil {
 		return fmt.Errorf("failed to update last seen: %w", err)
 	}
 
-	return s.syncChanges(ctx)
+	return nil
 }
 
 // ListIdentities returns a paginated list of identities
@@ -203,9 +131,8 @@ func (s *SQLStore) ListIdentities(ctx context.Context) ([]*identitypb.Identity, 
 // SetTrustStatus updates the trust status of an identity
 func (s *SQLStore) SetTrustStatus(ctx context.Context, serverAddress string, trusted bool, updatedAt time.Time) error {
 	params := sqlc.SetTrustStatusParams{
-		ServerAddress:  serverAddress,
-		IsTrusted:      trusted,
-		TrustUpdatedAt: updatedAt.Unix(),
+		ServerAddress: serverAddress,
+		IsTrusted:     trusted,
 	}
 
 	err := s.queries.SetTrustStatus(ctx, params)
@@ -213,7 +140,7 @@ func (s *SQLStore) SetTrustStatus(ctx context.Context, serverAddress string, tru
 		return fmt.Errorf("failed to set trust status: %w", err)
 	}
 
-	return s.syncChanges(ctx)
+	return nil
 }
 
 // DeleteIdentity removes an identity from the store
@@ -223,7 +150,7 @@ func (s *SQLStore) DeleteIdentity(ctx context.Context, publicKey []byte) error {
 		return fmt.Errorf("failed to delete identity: %w", err)
 	}
 
-	return s.syncChanges(ctx)
+	return nil
 }
 
 // CountIdentities returns the total count of identities (optionally filtered by trust status)
@@ -236,90 +163,16 @@ func (s *SQLStore) CountIdentities(ctx context.Context, trustedOnly bool) (int64
 	return count, nil
 }
 
-// Close closes the database connection
-func (s *SQLStore) Close() error {
-	if s.db != nil {
-		return s.db.Close()
-	}
-	return nil
-}
-
-// Sync Operations - only available with embedded replica
-
-// Push pushes local changes to remote
-func (s *SQLStore) Push(ctx context.Context) error {
-	if s.tursoDB == nil {
-		return fmt.Errorf("push not available: not using embedded replica")
-	}
-
-	if err := s.tursoDB.Push(ctx); err != nil {
-		return fmt.Errorf("failed to push changes: %w", err)
-	}
-
-	return nil
-}
-
-// Pull fetches remote changes to local
-func (s *SQLStore) Pull(ctx context.Context) (bool, error) {
-	if s.tursoDB == nil {
-		return false, fmt.Errorf("pull not available: not using embedded replica")
-	}
-
-	changed, err := s.tursoDB.Pull(ctx)
-	if err != nil {
-		return false, fmt.Errorf("failed to pull changes: %w", err)
-	}
-
-	return changed, nil
-}
-
-// Checkpoint compacts local WAL to bound disk usage
-func (s *SQLStore) Checkpoint(ctx context.Context) error {
-	if s.tursoDB == nil {
-		return fmt.Errorf("checkpoint not available: not using embedded replica")
-	}
-
-	if err := s.tursoDB.Checkpoint(ctx); err != nil {
-		return fmt.Errorf("failed to checkpoint: %w", err)
-	}
-
-	return nil
-}
-
-// Stats returns sync statistics
-func (s *SQLStore) Stats(ctx context.Context) (*turso.TursoSyncDbStats, error) {
-	if s.tursoDB == nil {
-		return nil, fmt.Errorf("stats not available: not using embedded replica")
-	}
-
-	stats, err := s.tursoDB.Stats(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get stats: %w", err)
-	}
-
-	return &stats, nil
-}
-
-// syncChanges is a helper that syncs changes if using embedded replica
-func (s *SQLStore) syncChanges(ctx context.Context) error {
-	if s.tursoDB != nil {
-		if err := s.tursoDB.Push(ctx); err != nil {
-			log.Printf("Warning: failed to push changes: %v", err)
-		}
-	}
-	return nil
-}
-
 // rowToIdentity converts a SQLC row to IdentityWithTrust
-func (s *SQLStore) rowToIdentity(row *sqlc.Identity) (*identitypb.Identity, error) {
+func (s *SQLStore) rowToIdentity(row *sqlc.ZtgIdentity) (*identitypb.Identity, error) {
 	identity := &identitypb.Identity{
 		PublicKey:      row.PublicKey,
 		ServerAddress:  row.ServerAddress,
 		ServerName:     row.ServerName,
 		OwnerName:      row.OwnerName,
-		CreatedAt:      timestamppb.New(time.Unix(row.CreatedAt, 0)),
+		CreatedAt:      timestamppb.New(row.CreatedAt),
 		IsTrusted:      row.IsTrusted,
-		TrustUpdatedAt: timestamppb.New(time.Unix(row.TrustUpdatedAt, 0)),
+		TrustUpdatedAt: timestamppb.New(row.TrustUpdatedAt),
 	}
 
 	// Parse capabilities JSON if present

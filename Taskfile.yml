@@ -1,15 +1,14 @@
 version: "3"
 
+vars:
+  DB_URL: "postgres://ztg:password@localhost:5432/ztg?sslmode=disable"
+
 tasks:
   dev1:
     env:
       ZTG_PORT: 50052
       ZTG_IDENTITY_SERVER_ADDRESS: "localhost:50052"
       # ZTG_DATABASE_URL: ""
-      # ZTG_DATABASE_AUTH_TOKEN: ""
-      # ZTG_DATABASE_BOOTSTRAP_IF_EMPTY: true
-      # ZTG_DATABASE_PATH: "./server1.db"
-      ZTG_DATABASE_PATH: ":memory:"
     cmds:
       - go run cmd/ztg/main.go server
 
@@ -62,3 +61,31 @@ tasks:
     desc: Build Docker image for ztg CLI
     cmds:
       - docker build -t ztg:latest .
+
+  migrate:
+    desc: Run the migrate command with optional CLI args
+    deps:
+      - install-migrate
+    cmds:
+      - migrate -path migrations -database "{{ .DB_URL }}" {{ .ACTION | default .CLI_ARGS }}
+
+  migrate-up:
+    desc: Run UP migrations
+    cmds:
+      - task: migrate
+        vars:
+          ACTION: up
+
+  migrate-drop:
+    desc: Drop database schema
+    cmds:
+      - task: migrate
+        vars:
+          ACTION: drop -f
+
+  install-migrate:
+    desc: Install golang-migrate if not already installed
+    status:
+      - command -v migrate
+    cmds:
+      - go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest

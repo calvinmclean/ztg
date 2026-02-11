@@ -11,12 +11,12 @@ import (
 type Querier interface {
 	CountIdentities(ctx context.Context, isTrusted bool) (int64, error)
 	DeleteIdentity(ctx context.Context, publicKey []byte) error
-	GetIdentityByAddress(ctx context.Context, serverAddress string) (Identity, error)
-	GetIdentityByKey(ctx context.Context, publicKey []byte) (Identity, error)
-	InsertIdentity(ctx context.Context, arg InsertIdentityParams) (Identity, error)
-	ListIdentities(ctx context.Context) ([]Identity, error)
+	GetIdentityByAddress(ctx context.Context, serverAddress string) (ZtgIdentity, error)
+	GetIdentityByKey(ctx context.Context, publicKey []byte) (ZtgIdentity, error)
+	InsertIdentity(ctx context.Context, arg InsertIdentityParams) (ZtgIdentity, error)
+	ListIdentities(ctx context.Context) ([]ZtgIdentity, error)
 	SetTrustStatus(ctx context.Context, arg SetTrustStatusParams) error
-	UpdateLastSeen(ctx context.Context, arg UpdateLastSeenParams) error
+	UpdateLastSeen(ctx context.Context, serverAddress string) error
 }
 
 var _ Querier = (*Queries)(nil)

@@ -4,39 +4,60 @@ import (
 	"context"
 	"database/sql"
 	"testing"
-	"time"
 
 	"github.com/calvinmclean/ztg/gen/go/sqlc"
+	"github.com/peterldowns/pgtestdb"
+	"github.com/peterldowns/pgtestdb/migrators/golangmigrator"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func TestInsertIdentity(t *testing.T) {
-	// Create in-memory SQLite database using Turso driver
-	db, err := sql.Open("turso", ":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open database: %v", err)
+// setupTestStore creates a PostgreSQL database for testing using pgtestdb.
+//
+// pgtestdb uses template databases to give each test a fully prepared and migrated
+// database. Migrations from ../../migrations are run once and each test gets its own
+// isolated database cloned from the template.
+//
+// Requirements:
+//   - PostgreSQL server running on localhost:5432
+//   - User "ztg" with password "password"
+//   - SUPERUSER, CREATEDB, and CREATEROLE capabilities
+func setupTestStore(t *testing.T) *sql.DB {
+	t.Helper()
+
+	// Configure pgtestdb to connect to test postgres server
+	conf := pgtestdb.Config{
+		DriverName: "pgx",
+		Host:       "localhost",
+		Port:       "5432",
+		User:       "ztg",
+		Password:   "password",
+		Options:    "sslmode=disable",
 	}
+
+	// Create migrator using golang-migrate migrations
+	migrator := golangmigrator.New("../../migrations")
+
+	db := pgtestdb.New(t, conf, migrator)
+
+	return db
+}
+
+func TestInsertIdentity(t *testing.T) {
+	db := setupTestStore(t)
 	defer db.Close()
 
 	ctx := context.Background()
 
-	// Run migration
-	err = runMigrations(ctx, db)
-	if err != nil {
-		t.Fatalf("Failed to run migrations: %v", err)
-	}
-
 	// Test inserting identity
 	queries := sqlc.New(db)
 
-	now := time.Now()
 	params := sqlc.InsertIdentityParams{
 		PublicKey:     []byte("test-public-key"),
 		ServerAddress: "test.example.com:8080",
 		ServerName:    "Test Server",
 		OwnerName:     "Test Owner",
 		Capabilities:  `["game1","game2"]`,
-		CreatedAt:     now.Unix(),
-		LastSeen:      now.Unix(),
 		IsTrusted:     false,
 	}
 
@@ -57,10 +78,10 @@ func TestInsertIdentity(t *testing.T) {
 		row.CreatedAt, row.CreatedAt, row.LastSeen, row.LastSeen)
 
 	// Verify the timestamp fields are properly set
-	if row.CreatedAt == 0 {
+	if row.CreatedAt.IsZero() {
 		t.Error("CreatedAt should not be zero")
 	}
-	if row.LastSeen == 0 {
+	if row.LastSeen.IsZero() {
 		t.Error("LastSeen should not be zero")
 	}
 }

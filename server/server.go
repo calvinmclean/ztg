@@ -65,13 +65,13 @@ func NewServer(serverConfig config.ServerConfig, databaseConfig config.DatabaseC
 
 	// Initialize SQL store if database is configured
 	var sqlStore store.Store
-	if databaseConfig.Path != "" || databaseConfig.URL != "" {
+	if databaseConfig.URL != "" {
 		var err error
 		sqlStore, err = store.NewSQLStore(databaseConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize SQL store: %w", err)
 		}
-		logger.Info("initialized SQL identity store", "path", databaseConfig.Path, "url", databaseConfig.URL)
+		logger.Info("initialized SQL identity store", "url", databaseConfig.URL)
 	}
 
 	addr := fmt.Sprintf(":%d", serverConfig.Port)

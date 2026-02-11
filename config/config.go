@@ -27,11 +27,11 @@ type IdentityConfig struct {
 }
 
 type DatabaseConfig struct {
-	URL           string `json:"url,omitzero" envconfig:"ZTG_DATABASE_URL"`
-	AuthToken     string `json:"auth_token,omitzero" envconfig:"ZTG_DATABASE_AUTH_TOKEN"`
-	Path          string `json:"path,omitzero" envconfig:"ZTG_DATABASE_PATH"`
-	PollTimeoutMs int    `json:"long_poll_timeout_ms,omitzero" envconfig:"ZTG_DATABASE_LONG_POLL_TIMEOUT_MS"`
-	IfEmpty       bool   `json:"bootstrap_if_empty,omitzero" envconfig:"ZTG_DATABASE_BOOTSTRAP_IF_EMPTY"`
+	URL             string `json:"url,omitzero" envconfig:"ZTG_DATABASE_URL"`
+	MaxConnections  int    `json:"max_connections,omitzero" envconfig:"ZTG_DATABASE_MAX_CONNECTIONS"`
+	MinConnections  int    `json:"min_connections,omitzero" envconfig:"ZTG_DATABASE_MIN_CONNECTIONS"`
+	MaxConnLifetime int    `json:"max_conn_lifetime,omitzero" envconfig:"ZTG_DATABASE_MAX_CONN_LIFETIME"`
+	MaxConnIdleTime int    `json:"max_conn_idle_time,omitzero" envconfig:"ZTG_DATABASE_MAX_CONN_IDLE_TIME"`
 }
 
 type Config struct {

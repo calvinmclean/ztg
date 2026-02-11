@@ -1,31 +1,30 @@
 -- name: InsertIdentity :one
-INSERT INTO identities (
-    public_key, server_address, server_name, owner_name, capabilities,
-    created_at, last_seen, is_trusted, trust_updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO ztg.identities (
+    public_key, server_address, server_name, owner_name, capabilities, is_trusted
+) VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: GetIdentityByKey :one
-SELECT * FROM identities WHERE public_key = ? LIMIT 1;
+SELECT * FROM ztg.identities WHERE public_key = $1 LIMIT 1;
 
 -- name: GetIdentityByAddress :one
-SELECT * FROM identities WHERE server_address = ? LIMIT 1;
+SELECT * FROM ztg.identities WHERE server_address = $1 LIMIT 1;
 
 -- name: UpdateLastSeen :exec
-UPDATE identities SET last_seen = ? WHERE server_address = ?;
+UPDATE ztg.identities SET last_seen = NOW() WHERE server_address = $1;
 
 -- name: ListIdentities :many
-SELECT * FROM identities
+SELECT * FROM ztg.identities
 ORDER BY created_at DESC;
 
 -- name: SetTrustStatus :exec
-UPDATE identities
-SET is_trusted = ?, trust_updated_at = ?
-WHERE server_address = ?;
+UPDATE ztg.identities
+SET is_trusted = $1, trust_updated_at = NOW()
+WHERE server_address = $2;
 
 -- name: DeleteIdentity :exec
-DELETE FROM identities WHERE public_key = ?;
+DELETE FROM ztg.identities WHERE public_key = $1;
 
 -- name: CountIdentities :one
-SELECT COUNT(*) as count FROM identities
-WHERE (EXCLUDED.sqlite_arg('trusted_only', false) = false OR is_trusted = ?);
+SELECT COUNT(*) as count FROM ztg.identities
+WHERE (EXCLUDED.arg_trusted_only = false OR is_trusted = $1);

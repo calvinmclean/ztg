@@ -9,15 +9,49 @@ import (
 	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
 	"github.com/calvinmclean/ztg/identity"
 	"github.com/calvinmclean/ztg/identity/store"
+	"github.com/peterldowns/pgtestdb"
+	"github.com/peterldowns/pgtestdb/migrators/golangmigrator"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// setupTestStore creates an in-memory SQLite store for testing
+// setupTestStore creates a PostgreSQL store for testing using pgtestdb.
+//
+// pgtestdb uses template databases to give each test a fully prepared and migrated
+// database. Migrations from ../migrations are run once and each test gets its own
+// isolated database cloned from the template.
+//
+// Requirements:
+//   - PostgreSQL server running on localhost:5432
+//   - User "ztg" with password "password"
+//   - SUPERUSER, CREATEDB, and CREATEROLE capabilities
 func setupTestStore(t *testing.T) store.Store {
+	t.Helper()
+
+	// Configure pgtestdb to connect to test postgres server
+	conf := pgtestdb.Config{
+		DriverName: "pgx",
+		Host:       "localhost",
+		Port:       "5432",
+		User:       "ztg",
+		Password:   "password",
+		Options:    "sslmode=disable",
+	}
+
+	// Create migrator using golang-migrate migrations
+	migrator := golangmigrator.New("../migrations")
+
+	// Get a fresh test database with custom config
+	// pgtestdb.Custom creates a new database from the template and returns
+	// the config for connecting to it
+	testDBConf := pgtestdb.Custom(t, conf, migrator)
+
+	// Create SQLStore using the test database URL
 	dbConfig := config.DatabaseConfig{
-		Path: ":memory:",
+		URL: testDBConf.URL(),
 	}
 
 	sqlStore, err := store.NewSQLStore(dbConfig)
