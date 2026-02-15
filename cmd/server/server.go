@@ -78,10 +78,11 @@ var Command = &cli.Command{
 				fmt.Println(log)
 			},
 		}
-		// Get the SQL store from the gRPC server for game services
+		// Get the SQL store and logger from the gRPC server for game services
 		sqlStore := grpcServer.GetStore()
+		logger := grpcServer.GetLogger()
 
-		ffService := ffserver.NewService(ffCfg, keyManager, cfg.Identity.ServerAddress, sqlStore)
+		ffService := ffserver.NewService(ffCfg, keyManager, cfg.Identity.ServerAddress, sqlStore, logger)
 		grpcServer.Register(ffService)
 
 		highrollService := highrollserver.NewService(keyManager, cfg.Identity.ServerAddress, sqlStore)

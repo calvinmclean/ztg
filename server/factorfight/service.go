@@ -3,6 +3,7 @@ package factorfight
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/calvinmclean/ztg/factorfight"
 	"github.com/calvinmclean/ztg/identity"
@@ -35,15 +36,17 @@ type Service struct {
 	keyManager *identity.KeyManager
 	serverAddr string
 	store      store.Store // SQL store for persistent identity storage
+	logger     *slog.Logger
 }
 
 // NewService creates a new FactorFight service.
-func NewService(cfg Config, keyManager *identity.KeyManager, serverAddr string, sqlStore store.Store) *Service {
+func NewService(cfg Config, keyManager *identity.KeyManager, serverAddr string, sqlStore store.Store, logger *slog.Logger) *Service {
 	return &Service{
 		cfg:        cfg,
 		keyManager: keyManager,
 		serverAddr: serverAddr,
 		store:      sqlStore,
+		logger:     logger.With("service", GameID),
 	}
 }
 
@@ -56,7 +59,11 @@ func (s *Service) Register(server *grpc.Server) {
 }
 
 // StreamGame handles the gRPC streaming communication.
-func (s *Service) Play(stream factorfightpb.FactorFightService_PlayServer) error {
+func (s *Service) Play(stream factorfightpb.FactorFightService_PlayServer) (err error) {
+	defer func() {
+		s.logger.Debug("completed request to Play", "err", err)
+	}()
+	s.logger.Debug("received request to Play")
 	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr, s.store)
 
 	factorfightPeer := createFactorfightPeer(stream, signer, verifier)

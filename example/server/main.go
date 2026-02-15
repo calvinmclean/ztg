@@ -64,7 +64,7 @@ func run() error {
 	}
 	sqlStore := grpcServer.GetStore()
 
-	ffService := ffserver.NewService(ffCfg, keyManager, cfg.Identity.ServerAddress, sqlStore)
+	ffService := ffserver.NewService(ffCfg, keyManager, cfg.Identity.ServerAddress, sqlStore, grpcServer.GetLogger())
 	grpcServer.Register(ffService)
 
 	highrollService := highrollserver.NewService(keyManager, cfg.Identity.ServerAddress, sqlStore)

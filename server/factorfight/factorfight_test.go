@@ -2,6 +2,8 @@ package factorfight_test
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -56,7 +58,8 @@ func TestTwoServerChallenge(t *testing.T) {
 			p1WinResult = &win
 		},
 	}
-	ffserver1 := ffserver.NewService(factorFightConfig1, km1, "localhost:50052", nil)
+	testLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ffserver1 := ffserver.NewService(factorFightConfig1, km1, "localhost:50052", nil, testLogger)
 
 	var p2WinResult *bool
 	serverConfig2 := config.ServerConfig{
@@ -69,7 +72,7 @@ func TestTwoServerChallenge(t *testing.T) {
 			p2WinResult = &win
 		},
 	}
-	ffserver2 := ffserver.NewService(factorFightConfig2, km2, "localhost:50053", nil)
+	ffserver2 := ffserver.NewService(factorFightConfig2, km2, "localhost:50053", nil, testLogger)
 
 	// Create database configs (empty for tests)
 	dbConfig1 := config.DatabaseConfig{}
@@ -187,7 +190,8 @@ func TestChallengeAuthorization(t *testing.T) {
 			t.Logf("Auth Test - Win: %v, Log: %v", win, log)
 		},
 	}
-	ffserver := ffserver.NewService(factorFightConfig, km, "localhost:50054", nil)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ffserver := ffserver.NewService(factorFightConfig, km, "localhost:50054", nil, logger)
 
 	srv, err := server.NewServer(serverConfig, config.DatabaseConfig{}, km)
 	if err != nil {

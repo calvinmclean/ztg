@@ -40,5 +40,3 @@ primary_region = 'lax'
   ZTG_SERVER_NAME = "ZTG"
   ZTG_OWNER_NAME = "Calvin McLean"
   ZTG_IDENTITY_SERVER_ADDRESS = "ztg.fly.dev:443"
-  ZTG_DATABASE_BOOTSTRAP_IF_EMPTY = true
-  ZTG_DATABASE_PATH = ":memory:"

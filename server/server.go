@@ -128,6 +128,11 @@ func (s *Server) GetStore() store.Store {
 	return s.store
 }
 
+// GetLogger returns the server's logger for use by game services.
+func (s *Server) GetLogger() *slog.Logger {
+	return s.logger
+}
+
 // Stop gracefully stops the gRPC server.
 func (s *Server) Stop() {
 	s.logger.Info("stopping gRPC server")
