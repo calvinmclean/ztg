@@ -117,10 +117,25 @@ func (s *Server) Register(g GameService) {
 	s.registry.registerGame(g)
 }
 
-// Run starts the gRPC server.
-func (s *Server) Run() error {
+// Run starts the gRPC server with the provided context.
+// The server will gracefully stop when the context is cancelled.
+func (s *Server) Run(ctx context.Context) error {
 	s.logger.Info("starting gRPC server", "address", s.listener.Addr())
-	return s.server.Serve(s.listener)
+
+	// Start the server in a goroutine
+	serveErr := make(chan error, 1)
+	go func() {
+		serveErr <- s.server.Serve(s.listener)
+	}()
+
+	// Wait for context cancellation or server error
+	select {
+	case <-ctx.Done():
+		s.Stop()
+		return ctx.Err()
+	case err := <-serveErr:
+		return err
+	}
 }
 
 // GetStore returns the SQL store for use by game services

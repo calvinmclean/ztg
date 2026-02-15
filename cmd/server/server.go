@@ -88,7 +88,6 @@ var Command = &cli.Command{
 		highrollService := highrollserver.NewService(keyManager, cfg.Identity.ServerAddress, sqlStore)
 		grpcServer.Register(highrollService)
 
-		grpcServer.Run()
-		return nil
+		return grpcServer.Run(ctx)
 	},
 }

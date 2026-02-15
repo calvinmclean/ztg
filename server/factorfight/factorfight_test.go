@@ -91,15 +91,15 @@ func TestTwoServerChallenge(t *testing.T) {
 	}
 	server2.Register(ffserver2)
 
-	// Start servers in goroutines
+	// Start servers in goroutines with background context
 	go func() {
-		if err := server1.Run(); err != nil {
+		if err := server1.Run(context.Background()); err != nil {
 			t.Errorf("Server 1 failed: %v", err)
 		}
 	}()
 
 	go func() {
-		if err := server2.Run(); err != nil {
+		if err := server2.Run(context.Background()); err != nil {
 			t.Errorf("Server 2 failed: %v", err)
 		}
 	}()
@@ -199,9 +199,9 @@ func TestChallengeAuthorization(t *testing.T) {
 	}
 	srv.Register(ffserver)
 
-	// Start server in goroutine
+	// Start server in goroutine with background context
 	go func() {
-		if err := srv.Run(); err != nil {
+		if err := srv.Run(context.Background()); err != nil {
 			t.Errorf("Server failed: %v", err)
 		}
 	}()
