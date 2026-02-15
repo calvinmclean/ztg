@@ -6,22 +6,31 @@ vars:
 tasks:
   dev1:
     desc: Run dev server 1 on localhost:50052
+    dir: example/server/
     env:
       ZTG_PORT: 50052
       ZTG_IDENTITY_SERVER_ADDRESS: "localhost:50052"
       ZTG_LOG_LEVEL: "debug"
+      ZTG_SERVER_NAME: "ZTG_Dev1"
+      ZTG_PRIVATE_KEY_FILE: "../../keys/example_ed25519.pem"
+      ZTG_OWNER_PUBLIC_KEY_FILE: "../../keys/example_ed25519.pub.pem"
       # ZTG_DATABASE_URL: ""
     cmds:
-      - go run cmd/ztg/main.go server
+      - go run main.go
 
   dev2:
     desc: Run dev server 2 on localhost:50053
+    dir: example/server/
     env:
       ZTG_PORT: 50053
       ZTG_IDENTITY_SERVER_ADDRESS: "localhost:50053"
       ZTG_LOG_LEVEL: "debug"
+      ZTG_SERVER_NAME: "ZTG_Dev2"
+      ZTG_PRIVATE_KEY_FILE: "../../keys/example_ed25519.pem"
+      ZTG_OWNER_PUBLIC_KEY_FILE: "../../keys/example_ed25519.pub.pem"
+      # ZTG_DATABASE_URL: ""
     cmds:
-      - go run cmd/ztg/main.go server
+      - go run main.go
 
   highroll:
     desc: Send a challenge from dev2 to dev1 for HighRoll game

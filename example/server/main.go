@@ -46,12 +46,13 @@ func run(ctx context.Context) error {
 
 	ffCfg := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
-		OnGameComplete: func(win bool, _ factorfight.GameLog) {
+		OnGameComplete: func(win bool, log factorfight.GameLog) {
 			winText := "Lose!"
 			if win {
 				winText = "Win!"
 			}
 			fmt.Printf("FactorFight Game Result: %s\n", winText)
+			fmt.Println(log)
 
 			if pushoverClient == nil {
 				return
