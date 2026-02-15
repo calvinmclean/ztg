@@ -53,7 +53,7 @@ func TestTwoServerChallenge(t *testing.T) {
 	}
 	factorFightConfig1 := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
-		OnGameComplete: func(win bool, log factorfight.GameLog) {
+		OnGameComplete: func(win bool, log factorfight.GameLog, logger *slog.Logger) {
 			t.Logf("Server 1 - Win: %v, Log: %v", win, log)
 			p1WinResult = &win
 		},
@@ -67,7 +67,7 @@ func TestTwoServerChallenge(t *testing.T) {
 	}
 	factorFightConfig2 := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
-		OnGameComplete: func(win bool, log factorfight.GameLog) {
+		OnGameComplete: func(win bool, log factorfight.GameLog, logger *slog.Logger) {
 			t.Logf("Server 2 - Win: %v, Log: %v", win, log)
 			p2WinResult = &win
 		},
@@ -186,7 +186,7 @@ func TestChallengeAuthorization(t *testing.T) {
 
 	factorFightConfig := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
-		OnGameComplete: func(win bool, log factorfight.GameLog) {
+		OnGameComplete: func(win bool, log factorfight.GameLog, logger *slog.Logger) {
 			t.Logf("Auth Test - Win: %v, Log: %v", win, log)
 		},
 	}

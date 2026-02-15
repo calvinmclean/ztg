@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -46,13 +47,13 @@ func run(ctx context.Context) error {
 
 	ffCfg := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
-		OnGameComplete: func(win bool, log factorfight.GameLog) {
+		OnGameComplete: func(win bool, gameLog factorfight.GameLog, logger *slog.Logger) {
 			winText := "Lose!"
 			if win {
 				winText = "Win!"
 			}
-			fmt.Printf("FactorFight Game Result: %s\n", winText)
-			fmt.Println(log)
+			logger.Info("FactorFight game complete", "result", winText)
+			fmt.Println(gameLog)
 
 			if pushoverClient == nil {
 				return

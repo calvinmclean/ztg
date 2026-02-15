@@ -25,7 +25,7 @@ type Config struct {
 	Strategy factorfight.Strategy
 	// OnGameComplete runs after your server receives a challenge from another player. The most basic/common
 	// use for it would be notifying yourself of win/lose
-	OnGameComplete func(win bool, log factorfight.GameLog)
+	OnGameComplete func(win bool, log factorfight.GameLog, logger *slog.Logger)
 }
 
 // Service implements the gRPC server for FactorFight.
@@ -81,7 +81,7 @@ func (s *Service) Play(stream factorfightpb.FactorFightService_PlayServer) (err 
 	}
 
 	if s.cfg.OnGameComplete != nil {
-		s.cfg.OnGameComplete(win, log)
+		s.cfg.OnGameComplete(win, log, s.logger)
 	}
 
 	return nil
@@ -121,7 +121,7 @@ func (s *Service) Challenge(ctx context.Context, conn *grpc.ClientConn) (*gamepb
 	}
 
 	if s.cfg.OnGameComplete != nil {
-		s.cfg.OnGameComplete(win, log)
+		s.cfg.OnGameComplete(win, log, s.logger)
 	}
 
 	err = stream.CloseSend()
