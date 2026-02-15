@@ -35,7 +35,10 @@ tasks:
   highroll:
     desc: Send a challenge from dev2 to dev1 for HighRoll game
     cmds:
-      - go run cmd/ztg/main.go challenge send --target localhost:50052 --game ztg.HighRoll.v1 --server localhost:50053
+      - go run cmd/ztg/main.go challenge send \
+        --target localhost:50052 \
+        --game ztg.HighRoll.v1 \
+        --server localhost:50053
 
   identity:
     desc: Get identity from dev1
@@ -56,12 +59,18 @@ tasks:
   ff1:
     desc: Send a request to dev1 server to challenge dev2 to FactorFight
     cmds:
-      - go run cmd/ztg/main.go challenge send --target localhost:50053 --game ztg.FactorFight.v1 --server localhost:50052
+      - go run cmd/ztg/main.go challenge send \
+        --target localhost:50053 \
+        --game ztg.FactorFight.v1 \
+        --server localhost:50052
 
   ff2:
     desc: Send a request to dev2 server to challenge dev1 to FactorFight
     cmds:
-      - go run cmd/ztg/main.go challenge send --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053
+      - go run cmd/ztg/main.go challenge send \
+        --target localhost:50052 \
+        --game ztg.FactorFight.v1 \
+        --server localhost:50053
 
   ff-remote:
     desc: Challenge my remote ZTG server to play FactorFight against itself
@@ -74,17 +83,26 @@ tasks:
   ff-local-remote:
     desc: Send a request to dev1 server to challenge my remote ZTG server
     cmds:
-      - go run cmd/ztg/main.go challenge send --target ztg.fly.dev:443 --game ztg.FactorFight.v1 --server localhost:50052
+      - go run cmd/ztg/main.go challenge send \
+        --target ztg.fly.dev:443 \
+        --game ztg.FactorFight.v1 \
+        --server localhost:50052
 
   trust1:
     desc: Send a request to dev1 server to challenge dev2 to FactorFight
     cmds:
-      - go run cmd/ztg/main.go trust send --server localhost:50052 --peer localhost:50053 --trusted
+      - go run cmd/ztg/main.go trust send \
+        --server localhost:50052 \
+        --peer localhost:50053 \
+        --trusted
 
   print_challenge:
     desc: Create and print a signed challenge request without sending
     cmds:
-      - go run cmd/ztg/main.go challenge create --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053
+      - go run cmd/ztg/main.go challenge create \
+        --target localhost:50052 \
+        --game ztg.FactorFight.v1 \
+        --server localhost:50053
 
   docker-build:
     desc: Build Docker image for ztg CLI
