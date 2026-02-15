@@ -8,8 +8,9 @@ import (
 
 	"github.com/calvinmclean/ztg/config"
 	"github.com/calvinmclean/ztg/identity"
+	"github.com/calvinmclean/ztg/identity/store"
 
-	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
 )
 
 func TestSigner_BasicOperations(t *testing.T) {
@@ -82,7 +83,8 @@ func TestVerifier_VerifyMessageSignature(t *testing.T) {
 	}
 
 	// Create verifier
-	verifier := NewVerifier(5 * time.Minute)
+	var sqlStore store.Store = nil
+	verifier := NewVerifier(5*time.Minute, sqlStore)
 
 	// Add peer identity to cache
 	verifier.AddPeerIdentity("localhost:8081", km2.PublicKey())
@@ -156,7 +158,8 @@ func TestVerifier_VerifyOrderedSignature(t *testing.T) {
 	}
 
 	// Create verifier
-	verifier := NewVerifier(5 * time.Minute)
+	var sqlStore store.Store = nil
+	verifier := NewVerifier(5*time.Minute, sqlStore)
 
 	// Add peer identity to cache
 	verifier.AddPeerIdentity("localhost:8081", km2.PublicKey())
@@ -208,7 +211,8 @@ func TestVerifier_AddPeerIdentity(t *testing.T) {
 		t.Fatalf("Failed to create key manager: %v", err)
 	}
 
-	verifier := NewVerifier(5 * time.Minute)
+	var sqlStore store.Store = nil
+	verifier := NewVerifier(5*time.Minute, sqlStore)
 
 	// Add peer identity
 	verifier.AddPeerIdentity("localhost:8081", km.PublicKey())
@@ -313,7 +317,8 @@ func TestVerifier_CacheManagement(t *testing.T) {
 		t.Fatalf("Failed to create key manager: %v", err)
 	}
 
-	verifier := NewVerifier(5 * time.Minute)
+	var sqlStore store.Store = nil
+	verifier := NewVerifier(5*time.Minute, sqlStore)
 
 	// Add multiple peer identities
 	verifier.AddPeerIdentity("localhost:8081", km.PublicKey())
@@ -344,7 +349,8 @@ func TestVerifier_AddressMismatchSecurity(t *testing.T) {
 		t.Fatalf("Failed to create key manager 1: %v", err)
 	}
 
-	verifier := NewVerifier(5 * time.Minute)
+	var sqlStore store.Store = nil
+	verifier := NewVerifier(5*time.Minute, sqlStore)
 
 	// Create a fake identity that has mismatched address
 
@@ -354,7 +360,6 @@ func TestVerifier_AddressMismatchSecurity(t *testing.T) {
 		ServerName:    "fake-server",
 		OwnerName:     "fake-owner",
 		Capabilities:  []string{"test"},
-		CreatedAt:     0,
 	}
 
 	// Cache fake identity
@@ -400,7 +405,6 @@ func TestIdentityCacheManager_GetWithAddressCheck(t *testing.T) {
 		ServerName:    "test-server",
 		OwnerName:     "test-owner",
 		Capabilities:  []string{"test"},
-		CreatedAt:     0,
 	}
 
 	// Cache valid identity
@@ -422,7 +426,6 @@ func TestIdentityCacheManager_GetWithAddressCheck(t *testing.T) {
 		ServerName:    "test-server",
 		OwnerName:     "test-owner",
 		Capabilities:  []string{"test"},
-		CreatedAt:     0,
 	}
 
 	// Cache mismatched identity
@@ -456,7 +459,8 @@ func TestSigner_Verifier_Integration(t *testing.T) {
 		t.Fatalf("Signer address should match server address")
 	}
 
-	verifier := NewVerifier(5 * time.Minute)
+	var sqlStore store.Store = nil
+	verifier := NewVerifier(5*time.Minute, sqlStore)
 	if verifier.GetCacheSize() != 0 {
 		t.Fatalf("New verifier should have empty cache")
 	}
@@ -498,7 +502,8 @@ func TestVerifier_HashChainVerification(t *testing.T) {
 		t.Fatalf("Failed to create key manager: %v", err)
 	}
 
-	verifier := NewVerifier(5 * time.Minute)
+	var sqlStore store.Store = nil
+	verifier := NewVerifier(5*time.Minute, sqlStore)
 	verifier.AddPeerIdentity("localhost:8081", km.PublicKey())
 
 	signer := identity.NewSigner(km.PrivateKey(), "localhost:8081")

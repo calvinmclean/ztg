@@ -1,74 +1,77 @@
 package main
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/calvinmclean/ztg/config"
+	"github.com/calvinmclean/ztg"
 	"github.com/calvinmclean/ztg/factorfight"
-	"github.com/calvinmclean/ztg/identity"
-	"github.com/calvinmclean/ztg/server"
 	ffserver "github.com/calvinmclean/ztg/server/factorfight"
-	highrollserver "github.com/calvinmclean/ztg/server/highroll"
 
 	"github.com/gregdel/pushover"
 )
 
 func main() {
-	err := run()
+	// Create context that listens for interrupt signals
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	err := run(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func run() error {
-	cfg := config.Config{}
-	config.LoadFromEnv(&cfg)
-	err := cfg.Validate()
-	if err != nil {
-		return fmt.Errorf("invalid config: %w", err)
-	}
-
+func run(ctx context.Context) error {
+	// Optional Pushover notifications
+	var pushoverClient *notifyClient
 	pushoverAppToken := os.Getenv("PUSHOVER_APP_TOKEN")
 	pushoverRecipientToken := os.Getenv("PUSHOVER_RECIPIENT_TOKEN")
-	if pushoverAppToken == "" || pushoverRecipientToken == "" {
-		return errors.New("missing PUSHOVER_APP_TOKEN and/or PUSHOVER_RECIPIENT_TOKEN")
+	if pushoverAppToken != "" && pushoverRecipientToken != "" {
+		var err error
+		pushoverClient, err = newNotifyClient(pushoverAppToken, pushoverRecipientToken)
+		if err != nil {
+			return fmt.Errorf("error creating Pushover client: %w", err)
+		}
 	}
 
-	pushoverClient, err := newNotifyClient(pushoverAppToken, pushoverRecipientToken)
+	cfg, err := ztg.LoadConfig()
 	if err != nil {
-		return fmt.Errorf("error creating Pushover client: %w", err)
-	}
-
-	keyManager, err := identity.NewKeyManager(cfg.Identity)
-	if err != nil {
-		return fmt.Errorf("failed to initialize key manager: %w", err)
-	}
-
-	grpcServer, err := server.NewServer(cfg.Server, keyManager)
-	if err != nil {
-		return fmt.Errorf("server initialization failed: %w", err)
+		return err
 	}
 
 	ffCfg := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
-		OnGameComplete: func(win bool, _ factorfight.GameLog) {
+		OnGameComplete: func(win bool, gameLog factorfight.GameLog, logger *slog.Logger) {
 			winText := "Lose!"
 			if win {
 				winText = "Win!"
 			}
-			pushoverClient.send("FactorFight Game", fmt.Sprintf("Result: %s", winText))
+			logger.Info("FactorFight game complete", "result", winText)
+			fmt.Println(gameLog)
+
+			if pushoverClient == nil {
+				return
+			}
+
+			// Send Pushover notification
+			err := pushoverClient.send("FactorFight Game", fmt.Sprintf("Result: %s", winText))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to send Pushover notification: %v\n", err)
+			}
 		},
 	}
-	ffService := ffserver.NewService(ffCfg, keyManager, cfg.Identity.ServerAddress)
-	grpcServer.Register(ffService)
 
-	highrollService := highrollserver.NewService(keyManager, cfg.Identity.ServerAddress)
-	grpcServer.Register(highrollService)
-
-	return grpcServer.Run()
+	return ztg.Run(
+		ctx, cfg,
+		ztg.WithFactorFight(ffCfg),
+		ztg.WithHighRoll(),
+	)
 }
 
 type notifyClient struct {
@@ -77,13 +80,6 @@ type notifyClient struct {
 }
 
 func newNotifyClient(appToken, recipientToken string) (*notifyClient, error) {
-	if appToken == "" {
-		return nil, errors.New("missing required app_token")
-	}
-	if recipientToken == "" {
-		return nil, errors.New("missing required recipient_token")
-	}
-
 	return &notifyClient{
 		app:       pushover.New(appToken),
 		recipient: pushover.NewRecipient(recipientToken),

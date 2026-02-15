@@ -7,7 +7,7 @@ import (
 
 	"github.com/calvinmclean/ztg/dice"
 	"github.com/calvinmclean/ztg/factorfight"
-	factorfightpb "github.com/calvinmclean/ztg/gen/go/factorfight/v1"
+	factorfightpb "github.com/calvinmclean/ztg/gen/go/proto/factorfight/v1"
 	"github.com/calvinmclean/ztg/server"
 
 	"google.golang.org/protobuf/proto"

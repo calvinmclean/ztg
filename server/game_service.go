@@ -6,9 +6,10 @@ import (
 	"log/slog"
 
 	"github.com/calvinmclean/ztg/config"
-	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
+	gamepb "github.com/calvinmclean/ztg/gen/go/proto/game/v1"
 	"github.com/calvinmclean/ztg/grpcutil"
 	"github.com/calvinmclean/ztg/identity"
+	"github.com/calvinmclean/ztg/identity/store"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,6 +24,7 @@ type gameService struct {
 	serverAddr   string
 	registry     *registry
 	logger       *slog.Logger
+	store        store.Store // SQL store for persistent identity storage
 }
 
 func (s *gameService) Challenge(ctx context.Context, req *gamepb.SignedChallengeRequest) (*gamepb.ChallengeResponse, error) {
@@ -33,7 +35,7 @@ func (s *gameService) Challenge(ctx context.Context, req *gamepb.SignedChallenge
 		return nil, fmt.Errorf("owner signature required for Challenge")
 	}
 
-	v := NewVerifier(0)
+	v := NewVerifier(0, s.store)
 	v.AddPeerIdentity("owner", s.keyManager.OwnerPublicKey())
 
 	err := v.VerifySignatureProto(req.Challenge, req.Signature)

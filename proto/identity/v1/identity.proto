@@ -3,8 +3,9 @@ syntax = "proto3";
 package identity.v1;
 
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/calvinmclean/ztg/gen/go/identity/v1";
+option go_package = "github.com/calvinmclean/ztg/gen/go/proto/identity/v1";
 
 message Identity {
   bytes public_key = 1;
@@ -12,7 +13,25 @@ message Identity {
   string server_name = 3;
   string owner_name = 4;
   repeated string capabilities = 5;
-  int64 created_at = 6;
+  google.protobuf.Timestamp created_at = 6;
+  bool is_trusted = 7;
+  google.protobuf.Timestamp trust_updated_at = 8;
+}
+
+message AddIdentityRequest {
+  Identity identity = 1;
+}
+
+message ListIdentitiesRequest {}
+
+message ListIdentitiesResponse {
+  repeated Identity identities = 1;
+}
+
+message SetTrustRequest {
+  string server_address = 1;
+  bool trusted = 2;
+  Signature signature = 3; // Owner signature for authorization
 }
 
 message Signature {
@@ -29,4 +48,7 @@ message OrderedSignature {
 
 service IdentityService {
   rpc GetIdentity(google.protobuf.Empty) returns (Identity);
+  rpc AddIdentity(AddIdentityRequest) returns (google.protobuf.Empty);
+  rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse);
+  rpc SetTrust(SetTrustRequest) returns (google.protobuf.Empty);
 }

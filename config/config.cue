@@ -33,5 +33,18 @@ package config
 	force_example!:  bool | *false
 }
 
+#Database: {
+	// Standard PostgreSQL connection string
+	// Examples:
+	// Local: "postgres://ztg:password@localhost:5432/ztg?sslmode=disable"
+	// Production: "postgres://user:pass@host:5432/ztg?sslmode=require"
+	url:                string | *"postgres://ztg:password@localhost:5432/ztg?sslmode=disable"
+	max_connections:    int | *10
+	min_connections:    int | *1
+	max_conn_lifetime:  int | *3600 // seconds
+	max_conn_idle_time: int | *300  // seconds
+}
+
 server!:   #Server
 identity!: #Identity
+database!: #Database

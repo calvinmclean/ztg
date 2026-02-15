@@ -2,13 +2,15 @@ package factorfight_test
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/calvinmclean/ztg/config"
 	"github.com/calvinmclean/ztg/factorfight"
-	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
-	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	gamepb "github.com/calvinmclean/ztg/gen/go/proto/game/v1"
+	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
 	"github.com/calvinmclean/ztg/identity"
 	"github.com/calvinmclean/ztg/server"
 	ffserver "github.com/calvinmclean/ztg/server/factorfight"
@@ -51,12 +53,13 @@ func TestTwoServerChallenge(t *testing.T) {
 	}
 	factorFightConfig1 := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
-		OnGameComplete: func(win bool, log factorfight.GameLog) {
+		OnGameComplete: func(win bool, log factorfight.GameLog, logger *slog.Logger) {
 			t.Logf("Server 1 - Win: %v, Log: %v", win, log)
 			p1WinResult = &win
 		},
 	}
-	ffserver1 := ffserver.NewService(factorFightConfig1, km1, "localhost:50052")
+	testLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ffserver1 := ffserver.NewService(factorFightConfig1, km1, "localhost:50052", nil, testLogger)
 
 	var p2WinResult *bool
 	serverConfig2 := config.ServerConfig{
@@ -64,35 +67,39 @@ func TestTwoServerChallenge(t *testing.T) {
 	}
 	factorFightConfig2 := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
-		OnGameComplete: func(win bool, log factorfight.GameLog) {
+		OnGameComplete: func(win bool, log factorfight.GameLog, logger *slog.Logger) {
 			t.Logf("Server 2 - Win: %v, Log: %v", win, log)
 			p2WinResult = &win
 		},
 	}
-	ffserver2 := ffserver.NewService(factorFightConfig2, km2, "localhost:50053")
+	ffserver2 := ffserver.NewService(factorFightConfig2, km2, "localhost:50053", nil, testLogger)
+
+	// Create database configs (empty for tests)
+	dbConfig1 := config.DatabaseConfig{}
+	dbConfig2 := config.DatabaseConfig{}
 
 	// Create servers
-	server1, err := server.NewServer(serverConfig1, km1)
+	server1, err := server.NewServer(serverConfig1, dbConfig1, km1)
 	if err != nil {
 		t.Fatalf("Failed to create server 1: %v", err)
 	}
 	server1.Register(ffserver1)
 
-	server2, err := server.NewServer(serverConfig2, km2)
+	server2, err := server.NewServer(serverConfig2, dbConfig2, km2)
 	if err != nil {
 		t.Fatalf("Failed to create server 2: %v", err)
 	}
 	server2.Register(ffserver2)
 
-	// Start servers in goroutines
+	// Start servers in goroutines with background context
 	go func() {
-		if err := server1.Run(); err != nil {
+		if err := server1.Run(context.Background()); err != nil {
 			t.Errorf("Server 1 failed: %v", err)
 		}
 	}()
 
 	go func() {
-		if err := server2.Run(); err != nil {
+		if err := server2.Run(context.Background()); err != nil {
 			t.Errorf("Server 2 failed: %v", err)
 		}
 	}()
@@ -179,21 +186,22 @@ func TestChallengeAuthorization(t *testing.T) {
 
 	factorFightConfig := ffserver.Config{
 		Strategy: factorfight.DefaultStrategy,
-		OnGameComplete: func(win bool, log factorfight.GameLog) {
+		OnGameComplete: func(win bool, log factorfight.GameLog, logger *slog.Logger) {
 			t.Logf("Auth Test - Win: %v, Log: %v", win, log)
 		},
 	}
-	ffserver := ffserver.NewService(factorFightConfig, km, "localhost:50054")
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ffserver := ffserver.NewService(factorFightConfig, km, "localhost:50054", nil, logger)
 
-	srv, err := server.NewServer(serverConfig, km)
+	srv, err := server.NewServer(serverConfig, config.DatabaseConfig{}, km)
 	if err != nil {
 		t.Fatalf("Failed to create server: %v", err)
 	}
 	srv.Register(ffserver)
 
-	// Start server in goroutine
+	// Start server in goroutine with background context
 	go func() {
-		if err := srv.Run(); err != nil {
+		if err := srv.Run(context.Background()); err != nil {
 			t.Errorf("Server failed: %v", err)
 		}
 	}()

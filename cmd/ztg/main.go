@@ -6,8 +6,9 @@ import (
 	"os"
 
 	"github.com/calvinmclean/ztg/cmd/challenge"
+	"github.com/calvinmclean/ztg/cmd/identity"
 	"github.com/calvinmclean/ztg/cmd/key"
-	"github.com/calvinmclean/ztg/cmd/server"
+	"github.com/calvinmclean/ztg/cmd/trust"
 
 	"github.com/urfave/cli/v3"
 )
@@ -19,7 +20,8 @@ func main() {
 		Commands: []*cli.Command{
 			key.Command,
 			challenge.Command,
-			server.Command,
+			trust.Command,
+			identity.Command,
 		},
 	}
 

@@ -1,51 +1,138 @@
 version: "3"
 
+vars:
+  DB_URL: "postgres://ztg:password@localhost:5432/ztg?sslmode=disable"
+
 tasks:
   dev1:
+    desc: Run dev server 1 on localhost:50052
+    dir: example/server/
     env:
       ZTG_PORT: 50052
       ZTG_IDENTITY_SERVER_ADDRESS: "localhost:50052"
+      ZTG_LOG_LEVEL: "debug"
+      ZTG_SERVER_NAME: "ZTG_Dev1"
+      ZTG_PRIVATE_KEY_FILE: "../../keys/example_ed25519.pem"
+      ZTG_OWNER_PUBLIC_KEY_FILE: "../../keys/example_ed25519.pub.pem"
+      # ZTG_DATABASE_URL: ""
     cmds:
-      - go run cmd/ztg/main.go server
+      - go run main.go
 
   dev2:
+    desc: Run dev server 2 on localhost:50053
+    dir: example/server/
     env:
       ZTG_PORT: 50053
       ZTG_IDENTITY_SERVER_ADDRESS: "localhost:50053"
+      ZTG_LOG_LEVEL: "debug"
+      ZTG_SERVER_NAME: "ZTG_Dev2"
+      ZTG_PRIVATE_KEY_FILE: "../../keys/example_ed25519.pem"
+      ZTG_OWNER_PUBLIC_KEY_FILE: "../../keys/example_ed25519.pub.pem"
+      # ZTG_DATABASE_URL: ""
     cmds:
-      - go run cmd/ztg/main.go server
+      - go run main.go
 
   highroll:
+    desc: Send a challenge from dev2 to dev1 for HighRoll game
     cmds:
-      - go run cmd/ztg/main.go challenge send --target localhost:50052 --game ztg.HighRoll.v1 --server localhost:50053
+      - go run cmd/ztg/main.go challenge send \
+        --target localhost:50052 \
+        --game ztg.HighRoll.v1 \
+        --server localhost:50053
 
   identity:
+    desc: Get identity from dev1
     cmds:
       - grpcurl -plaintext -d '{}' localhost:50052 identity.v1.IdentityService/GetIdentity
 
   generate:
+    desc: generate Go code from protobuf and SQL schema definitions
     cmds:
       - buf generate
+      - sqlc generate
 
   validate_config_testdata:
+    desc: validate configuration test data using CUE schema
     cmds:
       - cue vet config/testdata/* config/config.cue
 
   ff1:
-    desc: send a request to dev1 server to challenge dev2 to FactorFight
+    desc: Send a request to dev1 server to challenge dev2 to FactorFight
     cmds:
-      - go run cmd/ztg/main.go challenge send --target localhost:50053 --game ztg.FactorFight.v1 --server localhost:50052
+      - go run cmd/ztg/main.go challenge send \
+        --target localhost:50053 \
+        --game ztg.FactorFight.v1 \
+        --server localhost:50052
 
   ff2:
-    desc: send a request to dev2 server to challenge dev1 to FactorFight
+    desc: Send a request to dev2 server to challenge dev1 to FactorFight
     cmds:
-      - go run cmd/ztg/main.go challenge send --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053
+      - go run cmd/ztg/main.go challenge send \
+        --target localhost:50052 \
+        --game ztg.FactorFight.v1 \
+        --server localhost:50053
+
+  ff-remote:
+    desc: Challenge my remote ZTG server to play FactorFight against itself
+    cmds:
+      - go run cmd/ztg/main.go challenge send \
+        --target ztg.fly.dev:443 \
+        --game ztg.FactorFight.v1 \
+        --server ztg.fly.dev:443 --key-path {{ .CLI_ARGS }}
+
+  ff-local-remote:
+    desc: Send a request to dev1 server to challenge my remote ZTG server
+    cmds:
+      - go run cmd/ztg/main.go challenge send \
+        --target ztg.fly.dev:443 \
+        --game ztg.FactorFight.v1 \
+        --server localhost:50052
+
+  trust1:
+    desc: Send a request to dev1 server to challenge dev2 to FactorFight
+    cmds:
+      - go run cmd/ztg/main.go trust send \
+        --server localhost:50052 \
+        --peer localhost:50053 \
+        --trusted
 
   print_challenge:
+    desc: Create and print a signed challenge request without sending
     cmds:
-      - go run cmd/ztg/main.go challenge create --target localhost:50052 --game ztg.FactorFight.v1 --server localhost:50053
+      - go run cmd/ztg/main.go challenge create \
+        --target localhost:50052 \
+        --game ztg.FactorFight.v1 \
+        --server localhost:50053
 
   docker-build:
     desc: Build Docker image for ztg CLI
     cmds:
       - docker build -t ztg:latest .
+
+  migrate:
+    desc: Run the migrate command with optional CLI args
+    deps:
+      - install-migrate
+    cmds:
+      - migrate -path migrations -database "{{ .DB_URL }}" {{ .ACTION | default .CLI_ARGS }}
+
+  migrate-up:
+    desc: Run UP migrations
+    cmds:
+      - task: migrate
+        vars:
+          ACTION: up
+
+  migrate-drop:
+    desc: Drop database schema
+    cmds:
+      - task: migrate
+        vars:
+          ACTION: drop -f
+
+  install-migrate:
+    desc: Install golang-migrate if not already installed
+    status:
+      - command -v migrate
+    cmds:
+      - go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest

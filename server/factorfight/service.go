@@ -3,14 +3,16 @@ package factorfight
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/calvinmclean/ztg/factorfight"
 	"github.com/calvinmclean/ztg/identity"
+	"github.com/calvinmclean/ztg/identity/store"
 	"github.com/calvinmclean/ztg/server"
 
-	factorfightpb "github.com/calvinmclean/ztg/gen/go/factorfight/v1"
-	gamepb "github.com/calvinmclean/ztg/gen/go/game/v1"
-	identitypb "github.com/calvinmclean/ztg/gen/go/identity/v1"
+	factorfightpb "github.com/calvinmclean/ztg/gen/go/proto/factorfight/v1"
+	gamepb "github.com/calvinmclean/ztg/gen/go/proto/game/v1"
+	identitypb "github.com/calvinmclean/ztg/gen/go/proto/identity/v1"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -23,7 +25,7 @@ type Config struct {
 	Strategy factorfight.Strategy
 	// OnGameComplete runs after your server receives a challenge from another player. The most basic/common
 	// use for it would be notifying yourself of win/lose
-	OnGameComplete func(win bool, log factorfight.GameLog)
+	OnGameComplete func(win bool, log factorfight.GameLog, logger *slog.Logger)
 }
 
 // Service implements the gRPC server for FactorFight.
@@ -33,14 +35,18 @@ type Service struct {
 	cfg        Config
 	keyManager *identity.KeyManager
 	serverAddr string
+	store      store.Store // SQL store for persistent identity storage
+	logger     *slog.Logger
 }
 
 // NewService creates a new FactorFight service.
-func NewService(cfg Config, keyManager *identity.KeyManager, serverAddr string) *Service {
+func NewService(cfg Config, keyManager *identity.KeyManager, serverAddr string, sqlStore store.Store, logger *slog.Logger) *Service {
 	return &Service{
 		cfg:        cfg,
 		keyManager: keyManager,
 		serverAddr: serverAddr,
+		store:      sqlStore,
+		logger:     logger.With("service", GameID),
 	}
 }
 
@@ -53,8 +59,12 @@ func (s *Service) Register(server *grpc.Server) {
 }
 
 // StreamGame handles the gRPC streaming communication.
-func (s *Service) Play(stream factorfightpb.FactorFightService_PlayServer) error {
-	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr)
+func (s *Service) Play(stream factorfightpb.FactorFightService_PlayServer) (err error) {
+	defer func() {
+		s.logger.Debug("completed request to Play", "err", err)
+	}()
+	s.logger.Debug("received request to Play")
+	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr, s.store)
 
 	factorfightPeer := createFactorfightPeer(stream, signer, verifier)
 
@@ -71,7 +81,7 @@ func (s *Service) Play(stream factorfightpb.FactorFightService_PlayServer) error
 	}
 
 	if s.cfg.OnGameComplete != nil {
-		s.cfg.OnGameComplete(win, log)
+		s.cfg.OnGameComplete(win, log, s.logger)
 	}
 
 	return nil
@@ -91,7 +101,7 @@ func (s *Service) Challenge(ctx context.Context, conn *grpc.ClientConn) (*gamepb
 		return nil, fmt.Errorf("failed to get peer identity: %w", err)
 	}
 
-	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr)
+	signer, verifier := server.CreateSignerVerifierPair(s.keyManager, s.serverAddr, s.store)
 
 	// Cache the peer's public key for signature verification
 	verifier.AddPeerIdentity(conn.Target(), peerIdentity.PublicKey)
@@ -111,7 +121,7 @@ func (s *Service) Challenge(ctx context.Context, conn *grpc.ClientConn) (*gamepb
 	}
 
 	if s.cfg.OnGameComplete != nil {
-		s.cfg.OnGameComplete(win, log)
+		s.cfg.OnGameComplete(win, log, s.logger)
 	}
 
 	err = stream.CloseSend()

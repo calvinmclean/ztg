@@ -26,9 +26,18 @@ type IdentityConfig struct {
 	ForceExample       bool   `json:"force_example,omitzero" envconfig:"ZTG_FORCE_EXAMPLE"`
 }
 
+type DatabaseConfig struct {
+	URL             string `json:"url,omitzero" envconfig:"ZTG_DATABASE_URL"`
+	MaxConnections  int    `json:"max_connections,omitzero" envconfig:"ZTG_DATABASE_MAX_CONNECTIONS"`
+	MinConnections  int    `json:"min_connections,omitzero" envconfig:"ZTG_DATABASE_MIN_CONNECTIONS"`
+	MaxConnLifetime int    `json:"max_conn_lifetime,omitzero" envconfig:"ZTG_DATABASE_MAX_CONN_LIFETIME"`
+	MaxConnIdleTime int    `json:"max_conn_idle_time,omitzero" envconfig:"ZTG_DATABASE_MAX_CONN_IDLE_TIME"`
+}
+
 type Config struct {
 	Server   ServerConfig   `json:"server,omitzero"`
 	Identity IdentityConfig `json:"identity,omitzero"`
+	Database DatabaseConfig `json:"database,omitzero"`
 }
 
 func (c *Config) Validate() error {

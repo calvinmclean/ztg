@@ -90,6 +90,96 @@ ffCfg := ffserver.Config{
 }
 ```
 
+## Identity Store & Trust Management
+
+ztg now includes persistent identity storage using PostgreSQL. This allows server owners to maintain a trusted identity database and manage trust relationships.
+
+### How It Works
+
+The identity store provides:
+
+- **Persistent Storage**: Identities are stored in PostgreSQL
+- **Trust Management**: Server owners can mark identities as trusted or untrusted
+- **Automatic Discovery**: New challengers are automatically added to the database
+- **Local Verification**: Trusted identities can be verified without HTTP requests
+
+### Running with Storage
+```bash
+# Start PostgreSQL with Docker Compose
+docker-compose up -d postgres
+
+# Run server with PostgreSQL connection
+ZTG_DATABASE_URL="postgres://ztg:password@localhost:5432/ztg?sslmode=disable" \
+go run cmd/ztg/main.go server
+```
+
+### Managing Trust Status
+
+#### List All Identities
+```bash
+ztg identity list --server localhost:50052
+```
+
+#### Mark Identity as Trusted
+```bash
+ztg trust send \
+  --server localhost:50052 \
+  --peer localhost:50053 \
+  --trusted \
+  --key-path <owner_key_path> 
+```
+
+### Local vs Remote Player Challenges
+
+The identity store allows a player to register their identity with a remote server, which enables initiating challenges from a server without a remote IP/DNS. This is useful for local servers to challenge others during development.
+
+In the following scenario, Player A has a server running in the cloud (`ztg.fly.dev:443`) and Player B wants to challenge from their server on `localhost`:
+
+1. **Player B** runs a local server
+
+2. **Player B** registers their identity with Player A's remote server:
+   ```bash
+   ztg identity add \
+     --server ztg.fly.dev:443 \
+     --peer localhost:50052 \
+     --peer-name "Player B Local" \
+     --owner-name "Player B" \
+     --public-key [PLAYER_B_PUBLIC_KEY]
+   ```
+  - The `peer` is the local server's address because this is used in it's challenge request to the remote server (matches `--server` in the next step)
+
+3. **Player B** challenges Player A by sending a request to their local server:
+   ```bash
+   ztg challenge send \
+     --target ztg.fly.dev:443 \
+     --game ztg.FactorFight.v1 \
+     --server localhost:50052 \
+     --key-path <owner_key_path> 
+   ```
+
+This enables efficient zero-trust gaming while maintaining identity persistence across server restarts.
+
+## Database Migrations
+
+The project uses [golang-migrate](https://github.com/golang-migrate/migrate) to manage database schema changes. Migrations are located in the `migrations/` directory.
+
+#### Installation
+
+```bash
+# Install CLI tool
+go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+```
+
+#### Running Migrations with golang-migrate
+
+**Run Migrations**
+```bash
+# Up migrations (apply all pending migrations)
+migrate -database "postgres://user:password@localhost:5432/ztg_db?sslmode=disable" \
+        -path "migrations" \
+        up
+```
+
 ## Challenging Other Players
 
 Once your server is deployed, you can challenge other players:
@@ -99,7 +189,7 @@ ztg challenge send \
   --target ztg.fly.dev:443 \
   --game ztg.FactorFight.v1 \
   --server ztg.fly.dev:443 \
-  --key-path .keys/owner.pem
+  --key-path <owner_key_path> 
 ```
 
 Replace `--server ztg.fly.dev:443` with your deployed server address to challenge me with your implementation.
