@@ -131,39 +131,31 @@ ztg trust send \
 
 ### Local vs Remote Player Challenges
 
-The identity store enables a powerful use case where Player A runs locally and challenges Player B's server:
+The identity store allows a player to register their identity with a remote server, which enables initiating challenges from a server without a remote IP/DNS. This is useful for local servers to challenge others during development.
 
-1. **Player A** runs a local server
+In the following scenario, Player A has a server running in the cloud (`ztg.fly.dev:443`) and Player B wants to challenge from their server on `localhost`:
 
-2. **Player B** runs their deployed server with storage
+1. **Player B** runs a local server
 
-3. **Player B** registers their identity with Player A's local server:
+2. **Player B** registers their identity with Player A's remote server:
    ```bash
-   # First, get Player B's public key (outputs in base64 format)
-   ztg key show --public --key-path .keys/server.pem
-   
-   # Then add it to Player A's local server
    ztg identity add \
-     --server localhost:50052 \
-     --peer player-b.example.com:443 \
-     --peer-name "Player B Server" \
+     --server ztg.fly.dev:443 \
+     --peer localhost:50052 \
+     --peer-name "Player B Local" \
      --owner-name "Player B" \
      --public-key [PLAYER_B_PUBLIC_KEY]
    ```
+  - The `peer` is the local server's address because this is used in it's challenge request to the remote server (matches `--server` in the next step)
 
-4. **Player A** challenges Player B:
+3. **Player B** challenges Player A by sending a request to their local server:
    ```bash
    ztg challenge send \
-     --target player-b.example.com:443 \
+     --target ztg.fly.dev:443 \
      --game ztg.FactorFight.v1 \
      --server localhost:50052 \
      --key-path <owner_key_path> 
    ```
-
-5. **Player B** now knows Player A's identity without making HTTP requests because:
-   - Player A's identity was stored in Player B's database during the first challenge
-   - Player B can verify Player A's identity locally using the cached public key
-   - Future challenges from Player A can be verified instantly without network calls
 
 This enables efficient zero-trust gaming while maintaining identity persistence across server restarts.
 
