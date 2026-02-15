@@ -73,19 +73,6 @@ func (s *SQLStore) InsertIdentity(ctx context.Context, identity *identitypb.Iden
 	return nil
 }
 
-// GetIdentityByKey retrieves an identity by its public key
-func (s *SQLStore) GetIdentityByKey(ctx context.Context, publicKey []byte) (*identitypb.Identity, error) {
-	row, err := s.queries.GetIdentityByKey(ctx, publicKey)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("identity not found")
-		}
-		return nil, fmt.Errorf("failed to get identity by key: %w", err)
-	}
-
-	return s.rowToIdentity(&row)
-}
-
 // GetIdentityByAddress retrieves an identity by its server address
 func (s *SQLStore) GetIdentityByAddress(ctx context.Context, serverAddress string) (*identitypb.Identity, error) {
 	row, err := s.queries.GetIdentityByAddress(ctx, serverAddress)
@@ -141,26 +128,6 @@ func (s *SQLStore) SetTrustStatus(ctx context.Context, serverAddress string, tru
 	}
 
 	return nil
-}
-
-// DeleteIdentity removes an identity from the store
-func (s *SQLStore) DeleteIdentity(ctx context.Context, publicKey []byte) error {
-	err := s.queries.DeleteIdentity(ctx, publicKey)
-	if err != nil {
-		return fmt.Errorf("failed to delete identity: %w", err)
-	}
-
-	return nil
-}
-
-// CountIdentities returns the total count of identities (optionally filtered by trust status)
-func (s *SQLStore) CountIdentities(ctx context.Context, trustedOnly bool) (int64, error) {
-	count, err := s.queries.CountIdentities(ctx, trustedOnly)
-	if err != nil {
-		return 0, fmt.Errorf("failed to count identities: %w", err)
-	}
-
-	return count, nil
 }
 
 // rowToIdentity converts a SQLC row to IdentityWithTrust

@@ -11,28 +11,14 @@ import (
 type Store interface {
 	// InsertIdentity adds a new identity to the store
 	InsertIdentity(ctx context.Context, identity *identitypb.Identity) error
-
-	// GetIdentityByKey retrieves an identity by its public key
-	GetIdentityByKey(ctx context.Context, publicKey []byte) (*identitypb.Identity, error)
-
 	// GetIdentityByAddress retrieves an identity by its server address
 	GetIdentityByAddress(ctx context.Context, serverAddress string) (*identitypb.Identity, error)
-
 	// UpdateLastSeen updates the last seen timestamp for an identity
 	UpdateLastSeen(ctx context.Context, serverAddress string, lastSeen time.Time) error
-
 	// ListIdentities returns a paginated list of identities
 	ListIdentities(ctx context.Context) ([]*identitypb.Identity, error)
-
 	// SetTrustStatus updates the trust status of an identity
 	SetTrustStatus(ctx context.Context, serverAddress string, trusted bool, updatedAt time.Time) error
-
-	// DeleteIdentity removes an identity from the store
-	DeleteIdentity(ctx context.Context, publicKey []byte) error
-
-	// CountIdentities returns the total count of identities (optionally filtered by trust status)
-	CountIdentities(ctx context.Context, trustedOnly bool) (int64, error)
-
 	// Close closes the database connection
 	Close() error
 }
