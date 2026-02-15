@@ -172,29 +172,12 @@ go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@lat
 
 #### Running Migrations with golang-migrate
 
-**Run Up Migrations**
+**Run Migrations**
 ```bash
 # Up migrations (apply all pending migrations)
 migrate -database "postgres://user:password@localhost:5432/ztg_db?sslmode=disable" \
         -path "migrations" \
         up
-
-# Using environment variable
-migrate -database "$DATABASE_URL" -path "migrations" up
-```
-
-**Check migration status**:
-```bash
-migrate -database "$DATABASE_URL" -path "migrations" version
-```
-
-**Rollback migrations**:
-```bash
-# Rollback one migration
-migrate -database "$DATABASE_URL" -path "migrations" down 1
-
-# Rollback all migrations
-migrate -database "$DATABASE_URL" -path "migrations" down
 ```
 
 ## Challenging Other Players
